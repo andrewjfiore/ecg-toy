@@ -1,0 +1,3689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Reading Trainer | Step 1 Practice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ecg-bg: #fefdfb;
+            --grid-major: rgba(220, 38, 38, 0.15);
+            --grid-minor: rgba(220, 38, 38, 0.05);
+        }
+        
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: #f8fafc;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        .ecg-paper {
+            background-image: 
+                linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px),
+                linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px);
+            background-size: 25px 25px, 25px 25px, 5px 5px, 5px 5px;
+            background-color: var(--ecg-bg);
+        }
+
+        .lead-box {
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid #e2e8f0;
+        }
+        .lead-box:hover { 
+            border-color: #94a3b8;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .lead-box.normal { 
+            border-color: #22c55e; 
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0.02));
+        }
+        .lead-box.abnormal { 
+            border-color: #ef4444; 
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.02));
+        }
+        .lead-box.uncertain { 
+            border-color: #f59e0b; 
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.02));
+        }
+
+        /* Artery Territory Overlays */
+        .lead-box.territory-lad {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.04)) !important;
+            border-color: rgba(59, 130, 246, 0.4) !important;
+        }
+        .lead-box.territory-lcx {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(168, 85, 247, 0.04)) !important;
+            border-color: rgba(168, 85, 247, 0.4) !important;
+        }
+        .lead-box.territory-rca {
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.12), rgba(249, 115, 22, 0.04)) !important;
+            border-color: rgba(249, 115, 22, 0.4) !important;
+        }
+        .territory-label {
+            position: absolute;
+            bottom: 4px;
+            right: 6px;
+            font-size: 0.55rem;
+            font-weight: 700;
+            padding: 2px 5px;
+            border-radius: 3px;
+            z-index: 10;
+            opacity: 0.9;
+        }
+        .territory-label.lad { background: #3b82f6; color: white; }
+        .territory-label.lcx { background: #a855f7; color: white; }
+        .territory-label.rca { background: #f97316; color: white; }
+
+        .lead-label {
+            position: absolute;
+            top: 4px; left: 6px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: #991b1b;
+            background: rgba(255,255,255,0.95);
+            padding: 2px 6px;
+            border-radius: 3px;
+            z-index: 10;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .status-badge {
+            position: absolute;
+            top: 4px; right: 6px;
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            z-index: 10;
+        }
+        .status-badge.normal { background: #22c55e; color: white; }
+        .status-badge.abnormal { background: #ef4444; color: white; }
+        .status-badge.uncertain { background: #f59e0b; color: white; }
+
+        .abnormality-tag {
+            position: absolute;
+            bottom: 4px; left: 6px; right: 6px;
+            font-size: 0.55rem;
+            font-weight: 600;
+            color: #dc2626;
+            background: rgba(254, 226, 226, 0.95);
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-align: center;
+            z-index: 10;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: #22c55e; color: white; }
+        .btn-success:hover { background: #16a34a; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-outline { background: white; border: 2px solid #e2e8f0; color: #64748b; }
+        .btn-outline:hover { border-color: #94a3b8; background: #f8fafc; }
+
+        .rhythm-strip {
+            background: repeating-linear-gradient(90deg, transparent, transparent 124px, rgba(220, 38, 38, 0.08) 124px, rgba(220, 38, 38, 0.08) 125px),
+                linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px),
+                linear-gradient(to right, var(--grid-minor) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-minor) 1px, transparent 1px);
+            background-size: 125px 100%, 25px 25px, 25px 25px, 5px 5px, 5px 5px;
+            background-color: var(--ecg-bg);
+        }
+
+        select, input {
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            transition: border-color 0.15s;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .slide-up { animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .correct-answer { background: #dcfce7 !important; border-color: #22c55e !important; }
+        .incorrect-answer { background: #fee2e2 !important; border-color: #ef4444 !important; }
+        
+        /* Pulse animation for random button */
+        @keyframes pulse-btn {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .animate-pulse {
+            animation: pulse-btn 0.3s ease-in-out;
+        }
+        
+        /* Keyboard shortcut styling */
+        kbd {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            border: 1px solid #d1d5db;
+            box-shadow: 0 1px 0 #d1d5db;
+        }
+        
+        /* Drag selection styles */
+        .drag-selecting {
+            outline: 3px dashed #3b82f6 !important;
+            outline-offset: 2px;
+        }
+        .drag-mode-active .lead-box {
+            cursor: crosshair;
+        }
+        .drag-mode-active .lead-box:hover {
+            transform: scale(1.02);
+        }
+        .marking-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .mark-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.15s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .mark-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .mark-btn-normal { background: #dcfce7; color: #166534; }
+        .mark-btn-normal:hover, .mark-btn-normal.active { background: #22c55e; color: white; border-color: #16a34a; }
+        .mark-btn-abnormal { background: #fee2e2; color: #991b1b; }
+        .mark-btn-abnormal:hover, .mark-btn-abnormal.active { background: #ef4444; color: white; border-color: #dc2626; }
+        .mark-btn-uncertain { background: #fef3c7; color: #92400e; }
+        .mark-btn-uncertain:hover, .mark-btn-uncertain.active { background: #f59e0b; color: white; border-color: #d97706; }
+        .mark-btn-clear { background: #f1f5f9; color: #475569; }
+        .mark-btn-clear:hover, .mark-btn-clear.active { background: #94a3b8; color: white; }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen">
+    <div id="app" class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-extrabold text-slate-900">ECG Reading Trainer</h1>
+                    <p class="text-slate-500 text-sm">Interactive 12-Lead Analysis for Step 1</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 flex-wrap">
+                <select id="ecg-selector" onchange="loadSelectedECG()" class="w-64">
+                    <option value="">-- Select Sample ECG --</option>
+                    <optgroup label="📋 Sample Cases">
+                        <option value="sample_0">Case 1: Practice ECG</option>
+                        <option value="sample_1">Case 2: Practice ECG</option>
+                        <option value="sample_2">Case 3: Practice ECG</option>
+                        <option value="sample_3">Case 4: Practice ECG</option>
+                        <option value="sample_4">Case 5: Practice ECG</option>
+                    </optgroup>
+                    <optgroup label="✅ Normal Variants">
+                        <option value="normal_sinus">Normal Sinus Rhythm</option>
+                        <option value="sinus_arrhythmia">Sinus Arrhythmia</option>
+                        <option value="early_repol">Early Repolarization</option>
+                    </optgroup>
+                    <optgroup label="💓 Rate Abnormalities">
+                        <option value="sinus_brady">Sinus Bradycardia</option>
+                        <option value="sinus_tachy">Sinus Tachycardia</option>
+                    </optgroup>
+                    <optgroup label="🔀 Rhythm Abnormalities">
+                        <option value="afib">Atrial Fibrillation</option>
+                        <option value="aflutter">Atrial Flutter</option>
+                        <option value="vtach">Ventricular Tachycardia</option>
+                        <option value="svt">SVT</option>
+                    </optgroup>
+                    <optgroup label="🚫 Conduction Abnormalities">
+                        <option value="first_avb">1st Degree AV Block</option>
+                        <option value="second_avb_1">2nd Degree Type I (Wenckebach)</option>
+                        <option value="second_avb_2">2nd Degree Type II</option>
+                        <option value="third_avb">3rd Degree (Complete) Block</option>
+                        <option value="lbbb">Left Bundle Branch Block</option>
+                        <option value="rbbb">Right Bundle Branch Block</option>
+                    </optgroup>
+                    <optgroup label="❤️ Ischemia/Infarction">
+                        <option value="anterior_stemi">Anterior STEMI</option>
+                        <option value="inferior_stemi">Inferior STEMI</option>
+                        <option value="lateral_stemi">Lateral STEMI</option>
+                        <option value="posterior_mi">Posterior MI</option>
+                        <option value="nstemi">NSTEMI</option>
+                    </optgroup>
+                    <optgroup label="⚡ Electrolyte/Metabolic">
+                        <option value="hyperkalemia">Hyperkalemia (Peaked T)</option>
+                        <option value="hyperkalemia_severe">Severe Hyperkalemia (Sine Wave)</option>
+                        <option value="hypokalemia">Hypokalemia</option>
+                        <option value="hypercalcemia">Hypercalcemia</option>
+                        <option value="hypocalcemia">Hypocalcemia</option>
+                    </optgroup>
+                    <optgroup label="⚠️ Other Pathology">
+                        <option value="wpw">WPW Syndrome</option>
+                        <option value="long_qt">Long QT Syndrome</option>
+                        <option value="brugada">Brugada Syndrome</option>
+                        <option value="pericarditis">Acute Pericarditis</option>
+                        <option value="pe">Pulmonary Embolism</option>
+                        <option value="lvh">LV Hypertrophy</option>
+                        <option value="rvh">RV Hypertrophy</option>
+                    </optgroup>
+                    <optgroup label="🎯 STEMI Equivalents">
+                        <option value="de_winter">De Winter's T-Waves</option>
+                        <option value="wellens">Wellens' Syndrome</option>
+                        <option value="sgarbossa">STEMI in LBBB (Sgarbossa)</option>
+                    </optgroup>
+                </select>
+                
+                <!-- Randomizer -->
+                <div class="flex items-center gap-1">
+                    <select id="random-category" class="text-sm py-2 px-3 rounded-lg border-2 border-slate-200">
+                        <option value="all">All Categories</option>
+                        <option value="sample">Sample Cases</option>
+                        <option value="normal">Normal Variants</option>
+                        <option value="rhythm">Arrhythmias</option>
+                        <option value="block">Blocks</option>
+                        <option value="stemi">STEMI/Ischemia</option>
+                        <option value="electrolyte">Electrolytes</option>
+                        <option value="other">Other Pathology</option>
+                    </select>
+                    <button onclick="loadRandomECG()" class="btn btn-primary flex items-center gap-2" title="Load Random ECG (Shortcut: R)">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Random
+                    </button>
+                </div>
+                
+                <button onclick="showImportModal()" class="btn btn-outline flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    Import
+                </button>
+                <button onclick="exportECG()" class="btn btn-outline flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Export
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="grid lg:grid-cols-4 gap-6">
+            <!-- ECG Display -->
+            <div class="lg:col-span-3 space-y-4">
+                <!-- Patient Info Bar -->
+                <div class="card p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <h2 id="ecg-title" class="font-bold text-lg">Select an ECG to begin</h2>
+                            <p id="ecg-clinical" class="text-sm text-slate-500 italic"></p>
+                        </div>
+                        <div class="flex items-center gap-4 text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                                <span>Normal</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                                <span>Abnormal</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                                <span>Uncertain</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Territory Overlay Toggle -->
+                <div class="card p-3 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <button onclick="toggleTerritories()" id="territory-toggle" class="btn btn-outline flex items-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                            </svg>
+                            <span id="territory-toggle-text">Show Artery Territories</span>
+                        </button>
+                    </div>
+                    <div id="territory-legend" class="hidden flex items-center gap-4 text-xs">
+                        <div class="flex items-center gap-1">
+                            <span class="w-4 h-4 rounded bg-blue-500 opacity-70"></span>
+                            <span><strong>LAD</strong> V1-V4 (Anterior)</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="w-4 h-4 rounded bg-purple-500 opacity-70"></span>
+                            <span><strong>LCx</strong> I, aVL, V5-V6 (Lateral)</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="w-4 h-4 rounded bg-orange-500 opacity-70"></span>
+                            <span><strong>RCA</strong> II, III, aVF (Inferior)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Marking Toolbar -->
+                <div class="marking-toolbar card p-3 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-sm font-semibold text-slate-600">Quick Mark:</span>
+                        <button onclick="setMarkingMode('normal')" id="mark-btn-normal" class="mark-btn mark-btn-normal flex items-center gap-1" title="Press 1">
+                            <span>✓</span> Normal
+                        </button>
+                        <button onclick="setMarkingMode('abnormal')" id="mark-btn-abnormal" class="mark-btn mark-btn-abnormal flex items-center gap-1" title="Press 2 (double-click lead to specify type)">
+                            <span>✗</span> Abnormal
+                        </button>
+                        <button onclick="setMarkingMode('uncertain')" id="mark-btn-uncertain" class="mark-btn mark-btn-uncertain flex items-center gap-1" title="Press 3">
+                            <span>?</span> Uncertain
+                        </button>
+                        <button onclick="setMarkingMode('clear')" id="mark-btn-clear" class="mark-btn mark-btn-clear flex items-center gap-1" title="Press 0">
+                            <span>⌫</span> Clear
+                        </button>
+                        <span class="text-[10px] text-slate-400 hidden sm:inline">| Double-click any lead to open details</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-xs text-slate-500">
+                        <span id="marking-mode-indicator" class="hidden px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                            Click or drag leads to mark
+                        </span>
+                        <button onclick="cancelMarkingMode()" id="cancel-marking-btn" class="hidden text-slate-400 hover:text-slate-600" title="Press Esc">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 12-Lead Grid -->
+                <div class="card p-4">
+                    <div id="ecg-grid" class="grid grid-cols-4 gap-3">
+                        <!-- Row 1: I, aVR, V1, V4 -->
+                        <!-- Row 2: II, aVL, V2, V5 -->
+                        <!-- Row 3: III, aVF, V3, V6 -->
+                        <!-- Generated by JavaScript -->
+                    </div>
+                    
+                    <!-- Rhythm Strip with Lead Selector -->
+                    <div class="mt-4">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-xs font-semibold text-slate-500">Rhythm Strip Lead:</span>
+                            <select id="rhythm-lead-select" onchange="updateRhythmStrip()" class="text-xs py-1 px-2 border rounded">
+                                <option value="II" selected>Lead II (default)</option>
+                                <option value="V1">Lead V1 (BBB/Brugada)</option>
+                                <option value="V5">Lead V5</option>
+                                <option value="I">Lead I</option>
+                            </select>
+                        </div>
+                        <div id="rhythm-strip-box" class="lead-box rhythm-strip rounded-xl h-24 relative" onclick="openLeadModal('rhythm')">
+                            <span id="rhythm-strip-label" class="lead-label">Lead II Rhythm Strip</span>
+                            <svg id="rhythm-strip-svg" viewBox="0 0 1200 200" preserveAspectRatio="none" class="w-full h-full"></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Axis Interpretation Panel -->
+                <div class="card p-4 mt-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-sm">🧭 Axis Interpretation</h3>
+                        <button onclick="checkAxis()" class="btn btn-outline text-xs py-1">Check Axis</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="text-xs text-slate-500">Lead I QRS</label>
+                            <select id="axis-lead-i" class="w-full text-sm">
+                                <option value="">Select...</option>
+                                <option value="positive">Positive (↑)</option>
+                                <option value="negative">Negative (↓)</option>
+                                <option value="isoelectric">Isoelectric (≈)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-500">Lead aVF QRS</label>
+                            <select id="axis-lead-avf" class="w-full text-sm">
+                                <option value="">Select...</option>
+                                <option value="positive">Positive (↑)</option>
+                                <option value="negative">Negative (↓)</option>
+                                <option value="isoelectric">Isoelectric (≈)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500">Your Axis Interpretation</label>
+                        <select id="axis-interpretation" class="w-full text-sm">
+                            <option value="">Select axis...</option>
+                            <option value="normal">Normal Axis (−30° to +90°)</option>
+                            <option value="lad">Left Axis Deviation (−30° to −90°)</option>
+                            <option value="rad">Right Axis Deviation (+90° to +180°)</option>
+                            <option value="extreme">Extreme Axis Deviation (±180°)</option>
+                        </select>
+                    </div>
+                    <div id="axis-feedback" class="mt-2 hidden"></div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="clearAllMarks()" class="btn btn-outline">Clear All Marks</button>
+                    <button onclick="checkAnswers()" class="btn btn-primary">Check My Answers</button>
+                    <button onclick="showAnswerKey()" class="btn btn-outline">Show Answer Key</button>
+                    <button onclick="openDesignerMode()" class="btn btn-warning">📝 Design New ECG</button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Summary & Controls -->
+            <div class="space-y-4">
+                <!-- Marking Summary -->
+                <div class="card p-4">
+                    <h3 class="font-bold mb-3">📊 Your Markings</h3>
+                    <div id="marking-summary" class="space-y-2 text-sm">
+                        <p class="text-slate-400 text-center py-4">No leads marked yet</p>
+                    </div>
+                </div>
+
+                <!-- Quick Reference -->
+                <div class="card p-4">
+                    <h3 class="font-bold mb-3">📋 Systematic Approach</h3>
+                    <ol class="space-y-2 text-sm">
+                        <li class="flex items-start gap-2">
+                            <span class="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">1</span>
+                            <span><strong>Rate:</strong> 300/150/100/75/60/50</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">2</span>
+                            <span><strong>Rhythm:</strong> Regular? P before QRS?</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">3</span>
+                            <span><strong>Axis:</strong> I + aVF quadrant</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">4</span>
+                            <span><strong>Intervals:</strong> PR, QRS, QT</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="w-5 h-5 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-xs font-bold shrink-0">5</span>
+                            <span><strong>Waves:</strong> P, QRS, ST, T morphology</span>
+                        </li>
+                    </ol>
+                    
+                    <!-- Axis Quick Reference Table -->
+                    <div class="mt-4 pt-3 border-t border-slate-200">
+                        <p class="text-xs font-semibold text-slate-600 mb-2">🧭 Axis Quick Reference</p>
+                        <div class="grid grid-cols-2 gap-1 text-[10px]">
+                            <div class="bg-green-50 p-1.5 rounded text-center">
+                                <div class="font-bold text-green-800">I+ aVF+</div>
+                                <div class="text-green-600">Normal</div>
+                            </div>
+                            <div class="bg-yellow-50 p-1.5 rounded text-center">
+                                <div class="font-bold text-yellow-800">I+ aVF−</div>
+                                <div class="text-yellow-600">LAD</div>
+                            </div>
+                            <div class="bg-orange-50 p-1.5 rounded text-center">
+                                <div class="font-bold text-orange-800">I− aVF+</div>
+                                <div class="text-orange-600">RAD</div>
+                            </div>
+                            <div class="bg-red-50 p-1.5 rounded text-center">
+                                <div class="font-bold text-red-800">I− aVF−</div>
+                                <div class="text-red-600">Extreme</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Normal Intervals -->
+                    <div class="mt-3 pt-3 border-t border-slate-200">
+                        <p class="text-xs font-semibold text-slate-600 mb-2">⏱️ Normal Intervals</p>
+                        <div class="grid grid-cols-3 gap-1 text-[10px] text-center">
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <div class="font-bold">PR</div>
+                                <div class="text-slate-500">120-200ms</div>
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <div class="font-bold">QRS</div>
+                                <div class="text-slate-500">&lt;120ms</div>
+                            </div>
+                            <div class="bg-slate-50 p-1.5 rounded">
+                                <div class="font-bold">QTc</div>
+                                <div class="text-slate-500">&lt;440ms</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Keyboard Shortcuts -->
+                    <div class="mt-3 pt-3 border-t border-slate-200">
+                        <p class="text-xs font-semibold text-slate-600 mb-2">⌨️ Keyboard Shortcuts</p>
+                        <div class="grid grid-cols-2 gap-1 text-[10px]">
+                            <div class="flex items-center gap-1">
+                                <kbd class="px-1.5 py-0.5 bg-slate-100 rounded font-mono">R</kbd>
+                                <span class="text-slate-500">Random ECG</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <kbd class="px-1.5 py-0.5 bg-slate-100 rounded font-mono">C</kbd>
+                                <span class="text-slate-500">Check Answers</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <kbd class="px-1.5 py-0.5 bg-slate-100 rounded font-mono">A</kbd>
+                                <span class="text-slate-500">Answer Key</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <kbd class="px-1.5 py-0.5 bg-slate-100 rounded font-mono">X</kbd>
+                                <span class="text-slate-500">Clear Marks</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <kbd class="px-1.5 py-0.5 bg-green-100 rounded font-mono">1</kbd>
+                                <span class="text-slate-500">Mark Normal</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <kbd class="px-1.5 py-0.5 bg-red-100 rounded font-mono">2</kbd>
+                                <span class="text-slate-500">Mark Abnormal</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <kbd class="px-1.5 py-0.5 bg-yellow-100 rounded font-mono">3</kbd>
+                                <span class="text-slate-500">Mark Uncertain</span>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <kbd class="px-1.5 py-0.5 bg-slate-100 rounded font-mono">0</kbd>
+                                <span class="text-slate-500">Clear Mode</span>
+                            </div>
+                            <div class="flex items-center gap-1 col-span-2">
+                                <kbd class="px-1.5 py-0.5 bg-slate-100 rounded font-mono">Esc</kbd>
+                                <span class="text-slate-500">Close Modal / Cancel Mark Mode</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coronary Territory Reference -->
+                <div class="card p-4">
+                    <h3 class="font-bold mb-3">🫀 Coronary Territories</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-start gap-2 p-2 bg-blue-50 rounded-lg">
+                            <span class="w-3 h-3 mt-1 rounded bg-blue-500 shrink-0"></span>
+                            <div>
+                                <p class="font-bold text-blue-800">LAD</p>
+                                <p class="text-xs text-blue-600">V1-V4 → Septal/Anterior</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2 p-2 bg-purple-50 rounded-lg">
+                            <span class="w-3 h-3 mt-1 rounded bg-purple-500 shrink-0"></span>
+                            <div>
+                                <p class="font-bold text-purple-800">LCx</p>
+                                <p class="text-xs text-purple-600">I, aVL, V5-V6 → Lateral</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2 p-2 bg-orange-50 rounded-lg">
+                            <span class="w-3 h-3 mt-1 rounded bg-orange-500 shrink-0"></span>
+                            <div>
+                                <p class="font-bold text-orange-800">RCA</p>
+                                <p class="text-xs text-orange-600">II, III, aVF → Inferior</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-2 italic">Toggle overlay above to see on ECG</p>
+                </div>
+
+                <!-- Score (hidden until check) -->
+                <div id="score-card" class="card p-4 hidden bg-gradient-to-br from-blue-50 to-indigo-50">
+                    <h3 class="font-bold mb-2">🎯 Your Score</h3>
+                    <div class="text-center">
+                        <p id="score-display" class="text-4xl font-bold text-blue-600">--</p>
+                        <p id="score-detail" class="text-sm text-slate-500 mt-1"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lead Marking Modal -->
+    <div id="lead-modal" class="modal-overlay">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl slide-up">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-lead-title" class="text-xl font-bold">Lead I</h3>
+                <button onclick="closeLeadModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+            
+            <div id="modal-ecg-preview" class="ecg-paper rounded-xl h-32 mb-4 relative overflow-hidden">
+                <!-- ECG preview -->
+            </div>
+            
+            <p class="text-sm text-slate-600 mb-4">How would you classify this lead?</p>
+            
+            <div class="grid grid-cols-3 gap-3 mb-4">
+                <button onclick="markLead('normal')" class="btn btn-success flex flex-col items-center py-4">
+                    <span class="text-2xl mb-1">✓</span>
+                    <span>Normal</span>
+                </button>
+                <button onclick="markLead('abnormal')" class="btn btn-danger flex flex-col items-center py-4">
+                    <span class="text-2xl mb-1">✗</span>
+                    <span>Abnormal</span>
+                </button>
+                <button onclick="markLead('uncertain')" class="btn btn-warning flex flex-col items-center py-4">
+                    <span class="text-2xl mb-1">?</span>
+                    <span>Uncertain</span>
+                </button>
+            </div>
+            
+            <!-- Abnormality Selection (shown when abnormal selected) -->
+            <div id="abnormality-selector" class="hidden">
+                <p class="text-sm font-semibold mb-2">Select the abnormality:</p>
+                <select id="abnormality-type" class="w-full mb-3">
+                    <option value="">-- Choose abnormality --</option>
+                    <optgroup label="Rate">
+                        <option value="bradycardia">Bradycardia</option>
+                        <option value="tachycardia">Tachycardia</option>
+                    </optgroup>
+                    <optgroup label="P Wave">
+                        <option value="absent_p">Absent P waves</option>
+                        <option value="p_mitrale">P mitrale (LAE)</option>
+                        <option value="p_pulmonale">P pulmonale (RAE)</option>
+                        <option value="retrograde_p">Retrograde P</option>
+                        <option value="flutter_waves">Flutter waves</option>
+                        <option value="fib_waves">Fibrillatory waves</option>
+                    </optgroup>
+                    <optgroup label="PR Interval">
+                        <option value="short_pr">Short PR (&lt;120ms)</option>
+                        <option value="long_pr">Prolonged PR (&gt;200ms)</option>
+                        <option value="variable_pr">Variable PR</option>
+                    </optgroup>
+                    <optgroup label="QRS Complex">
+                        <option value="wide_qrs">Wide QRS (&gt;120ms)</option>
+                        <option value="pathologic_q">Pathologic Q wave</option>
+                        <option value="low_voltage">Low voltage</option>
+                        <option value="delta_wave">Delta wave</option>
+                        <option value="rsr_prime">RSR' pattern</option>
+                        <option value="deep_s">Deep S wave</option>
+                        <option value="tall_r">Tall R wave</option>
+                        <option value="poor_r_prog">Poor R progression</option>
+                    </optgroup>
+                    <optgroup label="ST Segment">
+                        <option value="st_elevation">ST elevation</option>
+                        <option value="st_depression">ST depression</option>
+                        <option value="st_coved">Coved ST (STEMI pattern)</option>
+                        <option value="st_concave">Concave ST (pericarditis)</option>
+                    </optgroup>
+                    <optgroup label="T Wave">
+                        <option value="t_inversion">T wave inversion</option>
+                        <option value="t_peaked">Peaked T waves</option>
+                        <option value="t_flattened">Flattened T waves</option>
+                        <option value="t_biphasic">Biphasic T waves</option>
+                        <option value="t_hyperacute">Hyperacute T waves</option>
+                    </optgroup>
+                    <optgroup label="QT Interval">
+                        <option value="long_qt">Prolonged QT</option>
+                        <option value="short_qt">Short QT</option>
+                    </optgroup>
+                    <optgroup label="U Wave">
+                        <option value="prominent_u">Prominent U waves</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                        <option value="av_dissociation">AV dissociation</option>
+                        <option value="escape_rhythm">Escape rhythm</option>
+                        <option value="osborn_wave">Osborn (J) wave</option>
+                    </optgroup>
+                </select>
+                <button onclick="confirmAbnormality()" class="btn btn-primary w-full">Confirm Abnormality</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="import-modal" class="modal-overlay">
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl slide-up">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Import ECG</h3>
+                <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+            <p class="text-sm text-slate-600 mb-4">Paste the ECG JSON data below:</p>
+            <textarea id="import-data" class="w-full h-48 p-3 border-2 border-slate-200 rounded-xl font-mono text-xs" placeholder='{"title": "My ECG", "leads": {...}}'></textarea>
+            <div class="flex gap-3 mt-4">
+                <button onclick="closeImportModal()" class="btn btn-outline flex-1">Cancel</button>
+                <button onclick="importECG()" class="btn btn-primary flex-1">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Designer Modal -->
+    <div id="designer-modal" class="modal-overlay">
+        <div class="bg-white rounded-2xl p-6 max-w-4xl w-full mx-4 shadow-2xl slide-up max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">📝 ECG Designer</h3>
+                <button onclick="closeDesignerModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">ECG Title</label>
+                        <input type="text" id="design-title" class="w-full" placeholder="e.g., Inferior STEMI">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">Clinical Scenario</label>
+                        <textarea id="design-clinical" class="w-full h-20 p-2 border-2 border-slate-200 rounded-lg" placeholder="e.g., 65yo M with chest pain..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1">Primary Diagnosis</label>
+                        <input type="text" id="design-diagnosis" class="w-full" placeholder="e.g., Acute Inferior STEMI">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold mb-2">Global Settings</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-slate-500">Heart Rate (bpm)</label>
+                                <input type="number" id="design-rate" class="w-full" value="75" min="20" max="300">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-500">PR Interval (ms)</label>
+                                <input type="number" id="design-pr" class="w-full" value="160" min="80" max="400">
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-500">QRS Width</label>
+                                <select id="design-qrs" class="w-full">
+                                    <option value="narrow">Narrow (&lt;120ms)</option>
+                                    <option value="wide">Wide (&gt;120ms)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-slate-500">P Waves</label>
+                                <select id="design-p" class="w-full">
+                                    <option value="normal">Normal</option>
+                                    <option value="absent">Absent</option>
+                                    <option value="retrograde">Retrograde</option>
+                                    <option value="flutter">Flutter waves</option>
+                                    <option value="fib">Fibrillatory</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <label class="block text-sm font-semibold">Lead-Specific Settings</label>
+                    <div id="lead-designer" class="space-y-2 max-h-80 overflow-y-auto">
+                        <!-- Generated lead settings -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6 pt-4 border-t">
+                <button onclick="closeDesignerModal()" class="btn btn-outline flex-1">Cancel</button>
+                <button onclick="previewDesign()" class="btn btn-outline flex-1">Preview</button>
+                <button onclick="saveDesign()" class="btn btn-primary flex-1">Save & Load</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Answer Key Modal -->
+    <div id="answer-modal" class="modal-overlay">
+        <div class="bg-white rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-2xl slide-up max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">📋 Answer Key</h3>
+                <button onclick="closeAnswerModal()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+            <div id="answer-key-content" class="space-y-4">
+                <!-- Generated answer key -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ============================================
+    // CONSTANTS & CALIBRATION
+    // ============================================
+    const LEADS = ["I", "aVR", "V1", "V4", "II", "aVL", "V2", "V5", "III", "aVF", "V3", "V6"];
+    const ALL_LEADS = [...LEADS, 'rhythm'];
+    
+    // ECG Paper Calibration (Standard)
+    // 1 small box = 1mm = 0.04s (40ms) horizontally, 0.1mV vertically
+    // 1 large box = 5mm = 0.2s (200ms) horizontally, 0.5mV vertically
+    const ECG_CALIBRATION = {
+        PX_PER_MM: 5,           // 5 pixels per millimeter
+        MS_PER_MM: 40,          // 40 milliseconds per millimeter (horizontal)
+        MV_PER_10MM: 1,         // 1 millivolt per 10mm (vertical)
+        get PX_PER_MS() { return this.PX_PER_MM / this.MS_PER_MM; },  // 0.125 px/ms
+        get PX_PER_LARGE_BOX() { return this.PX_PER_MM * 5; }         // 25px
+    };
+    
+    // Default lead configuration
+    const DEFAULT_LEAD_CONFIG = Object.freeze({
+        st: 0,
+        qrs: "narrow",
+        p: true,
+        t: "normal",
+        pr: 160,
+        amplitude: 1
+    });
+    
+    // Path cache for performance
+    const pathCache = new Map();
+
+    // Apply anatomically correct aVR inversion to any leads object
+    // aVR always shows inverted P, QRS, and T in normal conditions
+    // This should be called for any pattern where aVR doesn't have specific pathology
+    function applyAVRInversion(leads) {
+        if (leads.aVR) {
+            // Don't override if already set to specific pathological values
+            const currentQRS = leads.aVR.qrs;
+            const currentP = leads.aVR.p;
+            const currentT = leads.aVR.t;
+            
+            // Only apply inversion if not already specifically set
+            leads.aVR = {
+                ...leads.aVR,
+                qrs: (currentQRS === "narrow" || currentQRS === undefined) ? "inverted" : currentQRS,
+                p: (currentP === true || currentP === undefined) ? "inverted" : currentP,
+                t: (currentT === "normal" || currentT === undefined) ? "inverted" : currentT,
+                amplitude: leads.aVR.amplitude || 0.6
+            };
+        }
+        return leads;
+    }
+
+    // ============================================
+    // STATE & DATA
+    // ============================================
+    
+    // Safe DOM element getter
+    function getEl(id) {
+        const el = document.getElementById(id);
+        if (!el) console.warn(`Element not found: ${id}`);
+        return el;
+    }
+    
+    const state = {
+        currentECG: null,
+        currentLead: null,
+        userMarks: {}, // { leadName: { status: 'normal'|'abnormal'|'uncertain', abnormality: 'string' } }
+        designerData: {},
+        showTerritories: false,
+        rhythmStripLead: 'II',  // Default rhythm strip lead
+        // Quick marking mode
+        markingMode: null,  // 'normal', 'abnormal', 'uncertain', 'clear', or null
+        isDragging: false,
+        dragSelectedLeads: new Set()
+    };
+
+    // Coronary artery territories
+    const arteryTerritories = {
+        LAD: { 
+            leads: ["V1", "V2", "V3", "V4"], 
+            name: "LAD", 
+            fullName: "Left Anterior Descending",
+            territory: "Septal & Anterior",
+            color: "lad"
+        },
+        LCx: { 
+            leads: ["I", "aVL", "V5", "V6"], 
+            name: "LCx", 
+            fullName: "Left Circumflex",
+            territory: "Lateral",
+            color: "lcx"
+        },
+        RCA: { 
+            leads: ["II", "III", "aVF"], 
+            name: "RCA", 
+            fullName: "Right Coronary Artery",
+            territory: "Inferior",
+            color: "rca"
+        }
+    };
+
+    // Reciprocal lead pairs for auto-suggest
+    const reciprocalPairs = {
+        // Inferior ↔ Lateral
+        "II": ["I", "aVL"],
+        "III": ["I", "aVL"],
+        "aVF": ["I", "aVL"],
+        "I": ["II", "III", "aVF"],
+        "aVL": ["II", "III", "aVF"],
+        // Anterior ↔ Inferior (less common but present)
+        "V1": ["II", "III", "aVF"],
+        "V2": ["II", "III", "aVF"],
+        "V3": ["II", "III", "aVF"],
+        "V4": ["II", "III", "aVF"]
+    };
+
+    function getLeadTerritory(lead) {
+        for (const [artery, data] of Object.entries(arteryTerritories)) {
+            if (data.leads.includes(lead)) {
+                return data;
+            }
+        }
+        return null;
+    }
+
+    function getReciprocalLeads(lead) {
+        return reciprocalPairs[lead] || [];
+    }
+
+    // Comprehensive ECG Library
+    const ecgLibrary = {
+        // Sample Cases for Practice
+        sample_0: {
+            title: "Case 1: 58yo M with Chest Pain",
+            clinical: "Sudden onset crushing substernal chest pain radiating to left arm. Diaphoretic.",
+            diagnosis: "Inferior STEMI (RCA occlusion)",
+            rate: 72,
+            rhythm: "sinus",
+            leads: {
+                I: { status: "abnormal", abnormality: "st_depression", st: -8, qrs: "narrow", p: true, t: "normal" },
+                II: { status: "abnormal", abnormality: "st_elevation", st: 18, qrs: "narrow", p: true, t: "normal" },
+                III: { status: "abnormal", abnormality: "st_elevation", st: 22, qrs: "narrow", p: true, t: "normal" },
+                aVR: { status: "normal", st: 0, qrs: "narrow", p: true, t: "normal" },
+                aVL: { status: "abnormal", abnormality: "st_depression", st: -10, qrs: "narrow", p: true, t: "normal" },
+                aVF: { status: "abnormal", abnormality: "st_elevation", st: 20, qrs: "narrow", p: true, t: "normal" },
+                V1: { status: "normal", st: 0, qrs: "narrow", p: true, t: "normal" },
+                V2: { status: "normal", st: 0, qrs: "narrow", p: true, t: "normal" },
+                V3: { status: "normal", st: 0, qrs: "narrow", p: true, t: "normal" },
+                V4: { status: "normal", st: 0, qrs: "narrow", p: true, t: "normal" },
+                V5: { status: "normal", st: 0, qrs: "narrow", p: true, t: "normal" },
+                V6: { status: "normal", st: 0, qrs: "narrow", p: true, t: "normal" },
+                rhythm: { status: "normal" }
+            }
+        },
+        sample_1: {
+            title: "Case 2: 72yo F with Palpitations",
+            clinical: "History of HTN. Presents with 2 days of racing heart and fatigue.",
+            diagnosis: "Atrial Fibrillation with RVR",
+            rate: 142,
+            rhythm: "afib",
+            leads: {
+                I: { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                II: { status: "abnormal", abnormality: "fib_waves", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                III: { status: "abnormal", abnormality: "fib_waves", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                aVR: { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                aVL: { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                aVF: { status: "abnormal", abnormality: "fib_waves", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                V1: { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                V2: { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                V3: { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                V4: { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                V5: { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                V6: { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" },
+                rhythm: { status: "abnormal", abnormality: "fib_waves" }
+            }
+        },
+        sample_2: {
+            title: "Case 3: 65yo M with Weakness",
+            clinical: "ESRD on dialysis, missed last 2 sessions. Generalized weakness. K+ 8.2 mEq/L.",
+            diagnosis: "Severe Hyperkalemia (sine wave pattern)",
+            rate: 45,
+            rhythm: "sinus",
+            leads: {
+                I: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                II: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                III: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                aVR: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                aVL: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                aVF: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                V1: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                V2: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                V3: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                V4: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                V5: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                V6: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "sine-wave", p: false, t: "peaked" },
+                rhythm: { status: "abnormal", abnormality: "wide_qrs" }
+            }
+        },
+        sample_3: {
+            title: "Case 4: 45yo F Pre-op Clearance",
+            clinical: "Routine pre-op ECG. Asymptomatic. History of HTN for 15 years.",
+            diagnosis: "Left Bundle Branch Block",
+            rate: 68,
+            rhythm: "sinus",
+            leads: {
+                I: { status: "abnormal", abnormality: "wide_qrs", st: -5, qrs: "wide-lbbb", p: true, t: "inverted" },
+                II: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "wide", p: true, t: "normal" },
+                III: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "wide", p: true, t: "normal" },
+                aVR: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "wide", p: true, t: "normal" },
+                aVL: { status: "abnormal", abnormality: "wide_qrs", st: -5, qrs: "wide-lbbb", p: true, t: "inverted" },
+                aVF: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "wide", p: true, t: "normal" },
+                V1: { status: "abnormal", abnormality: "deep_s", st: 0, qrs: "wide-lbbb-v1", p: true, t: "normal" },
+                V2: { status: "abnormal", abnormality: "deep_s", st: 0, qrs: "wide-lbbb-v1", p: true, t: "normal" },
+                V3: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "wide", p: true, t: "normal" },
+                V4: { status: "abnormal", abnormality: "wide_qrs", st: 0, qrs: "wide", p: true, t: "normal" },
+                V5: { status: "abnormal", abnormality: "wide_qrs", st: -5, qrs: "wide-lbbb", p: true, t: "inverted" },
+                V6: { status: "abnormal", abnormality: "wide_qrs", st: -5, qrs: "wide-lbbb", p: true, t: "inverted" },
+                rhythm: { status: "normal" }
+            }
+        },
+        sample_4: {
+            title: "Case 5: 28yo M Syncope during Exercise",
+            clinical: "Collapsed during basketball game. Family history of sudden cardiac death.",
+            diagnosis: "WPW Syndrome (Wolff-Parkinson-White)",
+            rate: 88,
+            rhythm: "sinus",
+            leads: {
+                I: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                II: { status: "abnormal", abnormality: "short_pr", st: 0, qrs: "delta", p: true, t: "normal" },
+                III: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                aVR: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                aVL: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                aVF: { status: "abnormal", abnormality: "short_pr", st: 0, qrs: "delta", p: true, t: "normal" },
+                V1: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                V2: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                V3: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                V4: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                V5: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                V6: { status: "abnormal", abnormality: "delta_wave", st: 0, qrs: "delta", p: true, t: "normal" },
+                rhythm: { status: "abnormal", abnormality: "short_pr" }
+            }
+        },
+        
+        // Normal Variants
+        normal_sinus: {
+            title: "Normal Sinus Rhythm",
+            clinical: "Healthy 35yo presenting for routine physical.",
+            diagnosis: "Normal ECG",
+            rate: 72,
+            rhythm: "sinus",
+            leads: createNormalLeads()
+        },
+        sinus_arrhythmia: {
+            title: "Sinus Arrhythmia",
+            clinical: "18yo athlete. HR varies with respiration. Normal variant.",
+            diagnosis: "Sinus Arrhythmia (normal variant)",
+            rate: 68,
+            rhythm: "sinus_arrhythmia",  // Special rhythm type
+            leads: createSinusArrhythmiaLeads()
+        },
+        early_repol: {
+            title: "Early Repolarization",
+            clinical: "25yo M, asymptomatic. Incidental finding.",
+            diagnosis: "Benign Early Repolarization",
+            rate: 62,
+            rhythm: "sinus",
+            leads: createEarlyRepolLeads()
+        },
+        
+        // Rate Abnormalities
+        sinus_brady: {
+            title: "Sinus Bradycardia",
+            clinical: "Marathon runner at rest. Asymptomatic.",
+            diagnosis: "Sinus Bradycardia (physiologic)",
+            rate: 42,
+            rhythm: "sinus",
+            leads: createLeadsWithRate(42)
+        },
+        sinus_tachy: {
+            title: "Sinus Tachycardia",
+            clinical: "Patient with fever 39°C and dehydration.",
+            diagnosis: "Sinus Tachycardia",
+            rate: 130,
+            rhythm: "sinus",
+            leads: createLeadsWithRate(130)
+        },
+        
+        // Rhythm Abnormalities
+        afib: {
+            title: "Atrial Fibrillation",
+            clinical: "75yo with irregular pulse. On warfarin.",
+            diagnosis: "Atrial Fibrillation",
+            rate: 88,
+            rhythm: "afib",
+            leads: createAfibLeads()
+        },
+        aflutter: {
+            title: "Atrial Flutter",
+            clinical: "68yo with palpitations. HR 150 bpm.",
+            diagnosis: "Atrial Flutter with 2:1 block",
+            rate: 150,
+            rhythm: "flutter",
+            leads: createFlutterLeads()
+        },
+        vtach: {
+            title: "Ventricular Tachycardia",
+            clinical: "62yo post-MI with palpitations and near-syncope.",
+            diagnosis: "Monomorphic Ventricular Tachycardia",
+            rate: 180,
+            rhythm: "vtach",
+            leads: createVTachLeads()
+        },
+        
+        // Conduction Abnormalities
+        first_avb: {
+            title: "First Degree AV Block",
+            clinical: "Elderly patient on beta-blockers.",
+            diagnosis: "First Degree AV Block",
+            rate: 62,
+            rhythm: "sinus",
+            leads: createFirstAVBLeads()
+        },
+        lbbb: {
+            title: "Left Bundle Branch Block",
+            clinical: "Known cardiomyopathy patient.",
+            diagnosis: "Left Bundle Branch Block",
+            rate: 72,
+            rhythm: "sinus",
+            leads: createLBBBLeads()
+        },
+        rbbb: {
+            title: "Right Bundle Branch Block", 
+            clinical: "Incidental finding on pre-op ECG.",
+            diagnosis: "Right Bundle Branch Block",
+            rate: 75,
+            rhythm: "sinus",
+            leads: createRBBBLeads()
+        },
+        
+        // Ischemia
+        anterior_stemi: {
+            title: "Anterior STEMI",
+            clinical: "55yo M with crushing chest pain for 1 hour.",
+            diagnosis: "Anterior STEMI (LAD occlusion)",
+            rate: 95,
+            rhythm: "sinus",
+            leads: createAnteriorSTEMILeads()
+        },
+        inferior_stemi: {
+            title: "Inferior STEMI",
+            clinical: "64yo M with chest pain, nausea, diaphoresis.",
+            diagnosis: "Inferior STEMI (RCA occlusion)",
+            rate: 58,
+            rhythm: "sinus",
+            leads: createInferiorSTEMILeads()
+        },
+        lateral_stemi: {
+            title: "Lateral STEMI",
+            clinical: "60yo F with left-sided chest pain.",
+            diagnosis: "Lateral STEMI (LCx occlusion)",
+            rate: 82,
+            rhythm: "sinus",
+            leads: createLateralSTEMILeads()
+        },
+        
+        // Electrolytes
+        hyperkalemia: {
+            title: "Hyperkalemia",
+            clinical: "ESRD patient, K+ 6.8 mEq/L. Tall peaked T waves, widening QRS.",
+            diagnosis: "Hyperkalemia",
+            rate: 55,
+            rhythm: "sinus",
+            leads: createModerateHyperkalemiaLeads()  // Peaked T, wide QRS (more common presentation)
+        },
+        hyperkalemia_severe: {
+            title: "Severe Hyperkalemia (Sine Wave)",
+            clinical: "ESRD patient, missed dialysis, K+ 8.5 mEq/L. Obtunded.",
+            diagnosis: "Severe Hyperkalemia - Sine Wave Pattern",
+            rate: 40,
+            rhythm: "wide_qrs",
+            leads: createHyperkalemiaLeads()  // Sine wave pattern
+        },
+        hypokalemia: {
+            title: "Hypokalemia",
+            clinical: "Patient on diuretics, K+ 2.8 mEq/L.",
+            diagnosis: "Hypokalemia",
+            rate: 78,
+            rhythm: "sinus",
+            leads: createHypokalemiaLeads()
+        },
+        
+        // Other
+        wpw: {
+            title: "WPW Syndrome",
+            clinical: "Young patient with recurrent SVT.",
+            diagnosis: "Wolff-Parkinson-White Syndrome",
+            rate: 85,
+            rhythm: "sinus",
+            leads: createWPWLeads()
+        },
+        pericarditis: {
+            title: "Acute Pericarditis",
+            clinical: "Chest pain worse with inspiration, friction rub.",
+            diagnosis: "Acute Pericarditis",
+            rate: 95,
+            rhythm: "sinus",
+            leads: createPericarditisLeads()
+        },
+        lvh: {
+            title: "LV Hypertrophy",
+            clinical: "Long-standing hypertension.",
+            diagnosis: "Left Ventricular Hypertrophy",
+            rate: 72,
+            rhythm: "sinus",
+            leads: createLVHLeads()
+        },
+        rvh: {
+            title: "RV Hypertrophy",
+            clinical: "Patient with severe COPD.",
+            diagnosis: "Right Ventricular Hypertrophy",
+            rate: 78,
+            rhythm: "sinus",
+            leads: createRVHLeads()
+        },
+        svt: {
+            title: "Supraventricular Tachycardia",
+            clinical: "25yo F with sudden onset palpitations.",
+            diagnosis: "SVT (AVNRT)",
+            rate: 180,
+            rhythm: "svt",
+            leads: createSVTLeads()
+        },
+        second_avb_1: {
+            title: "2nd Degree AV Block Type I",
+            clinical: "Elderly patient, asymptomatic, found on routine ECG.",
+            diagnosis: "Mobitz Type I (Wenckebach)",
+            rate: 65,
+            rhythm: "wenckebach",
+            leads: createWenckebachLeads()
+        },
+        second_avb_2: {
+            title: "2nd Degree AV Block Type II",
+            clinical: "72yo M with syncope. History of prior MI.",
+            diagnosis: "Mobitz Type II - HIGH RISK",
+            rate: 55,
+            rhythm: "mobitz2",
+            leads: createMobitz2Leads()
+        },
+        third_avb: {
+            title: "3rd Degree (Complete) AV Block",
+            clinical: "80yo F found unresponsive. HR 32, BP 70/40.",
+            diagnosis: "Complete Heart Block - EMERGENCY",
+            rate: 35,
+            rhythm: "chb",
+            leads: createCompleteBlockLeads()
+        },
+        posterior_mi: {
+            title: "Posterior MI",
+            clinical: "58yo M with chest pain. Standard ECG 'looks normal'.",
+            diagnosis: "Posterior STEMI (often missed!)",
+            rate: 75,
+            rhythm: "sinus",
+            leads: createPosteriorMILeads()
+        },
+        nstemi: {
+            title: "NSTEMI",
+            clinical: "66yo M with chest pain at rest. Troponin elevated.",
+            diagnosis: "Non-ST Elevation MI",
+            rate: 88,
+            rhythm: "sinus",
+            leads: createNSTEMILeads()
+        },
+        hypercalcemia: {
+            title: "Hypercalcemia",
+            clinical: "Malignancy with bone mets. Ca2+ 13.5.",
+            diagnosis: "Hypercalcemia",
+            rate: 72,
+            rhythm: "sinus",
+            leads: createHypercalcemiaLeads()
+        },
+        hypocalcemia: {
+            title: "Hypocalcemia",
+            clinical: "Post-thyroidectomy patient with tetany.",
+            diagnosis: "Hypocalcemia",
+            rate: 75,
+            rhythm: "sinus",
+            leads: createHypocalcemiaLeads()
+        },
+        long_qt: {
+            title: "Long QT Syndrome",
+            clinical: "Young patient with syncope during exercise.",
+            diagnosis: "Long QT Syndrome",
+            rate: 65,
+            rhythm: "sinus",
+            leads: createLongQTLeads()
+        },
+        brugada: {
+            title: "Brugada Syndrome",
+            clinical: "35yo M, family history of sudden death. Asymptomatic.",
+            diagnosis: "Brugada Syndrome Type 1",
+            rate: 70,
+            rhythm: "sinus",
+            leads: createBrugadaLeads()
+        },
+        pe: {
+            title: "Pulmonary Embolism",
+            clinical: "Post-surgical patient with sudden dyspnea, pleuritic pain.",
+            diagnosis: "Acute Pulmonary Embolism",
+            rate: 115,
+            rhythm: "sinus",
+            leads: createPELeads()
+        },
+        de_winter: {
+            title: "De Winter's T-Waves",
+            clinical: "55yo M with crushing chest pain, diaphoresis. Initial ECG 'non-STEMI'.",
+            diagnosis: "De Winter's Pattern (LAD Occlusion Equivalent)",
+            rate: 85,
+            rhythm: "sinus",
+            leads: createDeWinterLeads()
+        },
+        wellens: {
+            title: "Wellens' Syndrome",
+            clinical: "48yo F with resolved chest pain. Now pain-free.",
+            diagnosis: "Wellens' Syndrome Type A (Biphasic T in V2-V3)",
+            rate: 72,
+            rhythm: "sinus",
+            leads: createWellensLeads()
+        },
+        sgarbossa: {
+            title: "STEMI in LBBB (Sgarbossa)",
+            clinical: "70yo M with LBBB baseline, now with chest pain.",
+            diagnosis: "STEMI with LBBB (Sgarbossa Positive)",
+            rate: 78,
+            rhythm: "sinus",
+            leads: createSgarbossaLeads()
+        }
+    };
+
+    // Additional helper functions for missing ECGs
+    function createRVHLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isV1 = lead === "V1";
+            const isRightPrecordial = ["V1", "V2"].includes(lead);
+            const isLateral = ["I", "V5", "V6"].includes(lead);
+            leads[lead] = { 
+                status: isV1 ? "abnormal" : (isLateral ? "abnormal" : "normal"),
+                abnormality: isV1 ? "tall_r" : (isLateral ? "deep_s" : null),
+                st: isRightPrecordial ? -3 : 0, 
+                qrs: "narrow", 
+                p: true, 
+                t: isRightPrecordial ? "inverted" : "normal",
+                amplitude: isV1 ? 1.4 : 1
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createSVTLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal",
+                abnormality: "tachycardia",
+                st: -3, // Mild rate-related ST depression 
+                qrs: "narrow", 
+                p: false,  // P waves buried in QRS or T
+                t: "normal"
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "tachycardia" };
+        return applyAVRInversion(leads);
+    }
+
+    function createWenckebachLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal",
+                abnormality: "variable_pr",
+                st: 0, 
+                qrs: "narrow", 
+                p: true, 
+                pr: 220,
+                t: "normal"
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "variable_pr" };
+        return applyAVRInversion(leads);
+    }
+
+    function createMobitz2Leads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal",
+                abnormality: "wide_qrs",
+                st: 0, 
+                qrs: "wide", 
+                p: true, 
+                pr: 180,
+                t: "normal"
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "av_dissociation" };
+        return applyAVRInversion(leads);
+    }
+
+    function createCompleteBlockLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal",
+                abnormality: "av_dissociation",
+                st: 0, 
+                qrs: "wide", 
+                p: true, 
+                t: "normal"
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "av_dissociation" };
+        return applyAVRInversion(leads);
+    }
+
+    function createPosteriorMILeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isAnterior = ["V1", "V2", "V3"].includes(lead);
+            leads[lead] = { 
+                status: isAnterior ? "abnormal" : "normal",
+                abnormality: isAnterior ? "tall_r" : null,
+                st: isAnterior ? -6 : 0,  // ST depression in V1-V3
+                qrs: isAnterior ? "tall-r-post" : "narrow",  // Tall R wave (reciprocal of posterior Q)
+                p: true, 
+                t: isAnterior ? "normal" : "normal",
+                amplitude: isAnterior ? 1.6 : 1.0  // Increased R wave amplitude in V1-V3
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createNSTEMILeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isLateral = ["I", "aVL", "V4", "V5", "V6"].includes(lead);
+            leads[lead] = { 
+                status: isLateral ? "abnormal" : "normal",
+                abnormality: isLateral ? "st_depression" : null,
+                st: isLateral ? -4 : 0, 
+                qrs: "narrow", 
+                p: true, 
+                t: isLateral ? "inverted" : "normal"
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createHypercalcemiaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal",
+                abnormality: "short_qt",
+                st: 0, 
+                qrs: "narrow", 
+                p: true, 
+                t: "normal",
+                shortqt: true
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "short_qt" };
+        return applyAVRInversion(leads);
+    }
+
+    function createHypocalcemiaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal",
+                abnormality: "long_qt",
+                st: 0, 
+                qrs: "narrow", 
+                p: true, 
+                t: "normal",
+                longqt: true
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "long_qt" };
+        return applyAVRInversion(leads);
+    }
+
+    function createLongQTLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal",
+                abnormality: "long_qt",
+                st: 0, 
+                qrs: "narrow", 
+                p: true, 
+                t: "normal",
+                longqt: true
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "long_qt" };
+        return applyAVRInversion(leads);
+    }
+
+    function createBrugadaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isV1V2 = ["V1", "V2"].includes(lead);
+            leads[lead] = { 
+                status: isV1V2 ? "abnormal" : "normal",
+                abnormality: isV1V2 ? "st_coved" : null,
+                st: isV1V2 ? 10 : 0, 
+                qrs: isV1V2 ? "wide-rbbb-v1" : "narrow", 
+                p: true, 
+                t: isV1V2 ? "inverted" : "normal"
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createPELeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isI = lead === "I";
+            const isIII = lead === "III";
+            const isRightPrecordial = ["V1", "V2", "V3"].includes(lead);
+            leads[lead] = { 
+                status: (isI || isIII || isRightPrecordial) ? "abnormal" : "normal",
+                abnormality: isI ? "deep_s" : (isIII ? "pathologic_q" : (isRightPrecordial ? "t_inversion" : null)),
+                st: 0, 
+                qrs: isIII ? "narrow" : "narrow", 
+                p: true, 
+                t: (isIII || isRightPrecordial) ? "inverted" : "normal"
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "tachycardia" };
+        return applyAVRInversion(leads);
+    }
+
+    // Helper functions to create lead sets
+    function createNormalLeads() {
+        const leads = {};
+        
+        // Lead-specific configurations for anatomically accurate 12-lead ECG
+        // aVR: Inverted (vector moves AWAY from right shoulder)
+        // Limb leads: I, II, III, aVL, aVF have varying amplitudes based on axis
+        // Precordial: V1-V6 show R-wave progression
+        
+        const leadConfigs = {
+            // Limb Leads
+            I:    { amplitude: 0.9, qrsPolarity: 1, tPolarity: 1 },      // Lateral view
+            II:   { amplitude: 1.1, qrsPolarity: 1, tPolarity: 1 },      // Inferior (typically tallest)
+            III:  { amplitude: 0.7, qrsPolarity: 1, tPolarity: 1 },      // Inferior
+            aVR:  { amplitude: 0.6, qrsPolarity: -1, tPolarity: -1, pPolarity: -1 },  // INVERTED - away from RA
+            aVL:  { amplitude: 0.5, qrsPolarity: 1, tPolarity: 1 },      // Lateral (often low voltage)
+            aVF:  { amplitude: 0.9, qrsPolarity: 1, tPolarity: 1 },      // Inferior
+            
+            // Precordial Leads - R-wave progression
+            V1:   { amplitude: 0.4, rWave: 0.3, sWave: 0.8 },  // Small R, deep S
+            V2:   { amplitude: 0.6, rWave: 0.5, sWave: 0.7 },  // R growing
+            V3:   { amplitude: 0.8, rWave: 0.7, sWave: 0.5 },  // Transition zone
+            V4:   { amplitude: 1.0, rWave: 0.9, sWave: 0.3 },  // R > S
+            V5:   { amplitude: 1.1, rWave: 1.0, sWave: 0.2 },  // Tall R, small S
+            V6:   { amplitude: 0.9, rWave: 0.9, sWave: 0.1 }   // Lateral
+        };
+        
+        LEADS.forEach(lead => {
+            const config = leadConfigs[lead] || { amplitude: 1, qrsPolarity: 1, tPolarity: 1 };
+            leads[lead] = { 
+                status: "normal",
+                st: 0, 
+                qrs: lead === "aVR" ? "inverted" : (lead.startsWith("V") ? "progression" : "narrow"),
+                p: lead === "aVR" ? "inverted" : true,
+                t: config.tPolarity === -1 ? "inverted" : "normal",
+                amplitude: config.amplitude || 1,
+                qrsPolarity: config.qrsPolarity || 1,
+                rWave: config.rWave,
+                sWave: config.sWave
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return leads;
+    }
+
+    function createLeadsWithRate(rate) {
+        const leads = {};
+        // Individual leads look normal in rate abnormalities - the difference is the spacing
+        LEADS.forEach(lead => {
+            leads[lead] = { status: "normal", st: 0, qrs: "narrow", p: true, t: "normal" };
+        });
+        // Rate abnormality is evident in rhythm strip
+        if (rate < 60) {
+            leads.rhythm = { status: "abnormal", abnormality: "bradycardia" };
+        } else if (rate > 100) {
+            leads.rhythm = { status: "abnormal", abnormality: "tachycardia" };
+        } else {
+            leads.rhythm = { status: "normal" };
+        }
+        return applyAVRInversion(leads);
+    }
+
+    function createAfibLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { status: "abnormal", abnormality: "absent_p", st: 0, qrs: "narrow", p: "fib", t: "normal" };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "fib_waves" };
+        return applyAVRInversion(leads);
+    }
+
+    function createFlutterLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isInferior = ["II", "III", "aVF"].includes(lead);
+            leads[lead] = { 
+                status: "abnormal", 
+                abnormality: isInferior ? "flutter_waves" : "absent_p", 
+                st: 0, qrs: "narrow", p: "flutter", t: "normal" 
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "flutter_waves" };
+        return applyAVRInversion(leads);
+    }
+
+    function createVTachLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal", 
+                abnormality: "wide_qrs", 
+                st: 0, 
+                qrs: "wide-vt",  // Distinct wide QRS, not sine wave
+                p: false,  // No P waves - AV dissociation
+                t: "normal",
+                amplitude: 1.0
+            };
+        });
+        // Key finding: AV dissociation (P waves march through independently)
+        leads.rhythm = { status: "abnormal", abnormality: "av_dissociation" };
+        return leads;
+    }
+
+    function createFirstAVBLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { status: "abnormal", abnormality: "long_pr", st: 0, qrs: "narrow", p: true, pr: 280, t: "normal" };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "long_pr" };
+        return applyAVRInversion(leads);
+    }
+
+    function createLBBBLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isV1V2 = ["V1", "V2"].includes(lead);
+            const isLateral = ["I", "aVL", "V5", "V6"].includes(lead);
+            leads[lead] = { 
+                status: "abnormal", 
+                abnormality: isV1V2 ? "deep_s" : "wide_qrs",
+                st: isLateral ? -8 : 0, 
+                qrs: isV1V2 ? "wide-lbbb-v1" : "wide-lbbb", 
+                p: true, 
+                t: isLateral ? "inverted" : "normal" 
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createRBBBLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isV1 = lead === "V1";
+            const isLateral = ["I", "V6"].includes(lead);
+            leads[lead] = { 
+                status: "abnormal", 
+                abnormality: isV1 ? "rsr_prime" : (isLateral ? "wide_qrs" : "wide_qrs"),
+                st: 0, 
+                qrs: isV1 ? "wide-rbbb-v1" : "wide-rbbb", 
+                p: true, 
+                t: isV1 ? "inverted" : "normal" 
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createAnteriorSTEMILeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isAnterior = ["V1", "V2", "V3", "V4"].includes(lead);
+            const isInferior = ["II", "III", "aVF"].includes(lead);
+            const isAVR = lead === "aVR";
+            leads[lead] = { 
+                status: isAnterior ? "abnormal" : (isInferior ? "abnormal" : (isAVR ? "abnormal" : "normal")),
+                abnormality: isAnterior ? "st_elevation" : (isInferior ? "st_depression" : (isAVR ? "st_elevation" : null)),
+                st: isAnterior ? 18 : (isInferior ? -6 : (isAVR ? 6 : 0)), 
+                qrs: isAVR ? "inverted" : "narrow", 
+                p: isAVR ? "inverted" : true, 
+                t: isAnterior ? "hyperacute" : (isAVR ? "inverted" : "normal")
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return leads;
+    }
+
+    function createInferiorSTEMILeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isInferior = ["II", "III", "aVF"].includes(lead);
+            const isLateral = ["I", "aVL"].includes(lead);
+            const isAVR = lead === "aVR";
+            leads[lead] = { 
+                status: isInferior ? "abnormal" : (isLateral ? "abnormal" : "normal"),
+                abnormality: isInferior ? "st_elevation" : (isLateral ? "st_depression" : null),
+                st: isInferior ? 20 : (isLateral ? -10 : 0), 
+                qrs: isAVR ? "inverted" : "narrow", 
+                p: isAVR ? "inverted" : true, 
+                t: isAVR ? "inverted" : "normal" 
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return leads;
+    }
+
+    function createLateralSTEMILeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isLateral = ["I", "aVL", "V5", "V6"].includes(lead);
+            leads[lead] = { 
+                status: isLateral ? "abnormal" : "normal",
+                abnormality: isLateral ? "st_elevation" : null,
+                st: isLateral ? 12 : 0, 
+                qrs: "narrow", 
+                p: true, 
+                t: "normal" 
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createHyperkalemiaLeads() {
+        // Severe hyperkalemia with sine-wave pattern (K+ > 8.0)
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal", 
+                abnormality: "wide_qrs",  // QRS merges with T to form sine wave
+                st: 0, 
+                qrs: "sine-wave",  // Sine wave pattern for severe hyperK
+                p: false,  // P waves disappear in severe hyperK
+                t: "peaked"
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "wide_qrs" };
+        return leads;
+    }
+
+    // Moderate hyperkalemia (K+ 6.0-7.5) - peaked T, widening QRS but not sine wave
+    function createModerateHyperkalemiaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal", 
+                abnormality: "t_peaked",
+                st: 0, 
+                qrs: "wide", 
+                p: true,  // P waves flattening but present
+                t: "peaked",
+                pr: 220  // PR prolongation
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "t_peaked" };
+        return applyAVRInversion(leads);
+    }
+
+    function createHypokalemiaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal", 
+                abnormality: "prominent_u",
+                st: -3, 
+                qrs: "narrow", 
+                p: true, 
+                t: "flattened",
+                u: true 
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createWPWLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal", 
+                abnormality: "delta_wave",
+                st: 0, 
+                qrs: "delta", 
+                p: true, 
+                pr: 100,
+                t: "normal" 
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "short_pr" };
+        return applyAVRInversion(leads);
+    }
+
+    function createPericarditisLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isAVR = lead === "aVR";
+            leads[lead] = { 
+                status: "abnormal", 
+                abnormality: isAVR ? "st_depression" : "st_concave",
+                st: isAVR ? -5 : 8, 
+                qrs: isAVR ? "inverted" : "narrow", 
+                p: isAVR ? "inverted" : true, 
+                t: isAVR ? "inverted" : "normal",
+                concave: !isAVR,  // Concave "smiley face" ST elevation
+                prDepression: !isAVR  // PR depression - key finding
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return leads;
+    }
+
+    function createLVHLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isV1 = lead === "V1";
+            const isLateral = ["I", "aVL", "V5", "V6"].includes(lead);
+            leads[lead] = { 
+                status: isV1 || isLateral ? "abnormal" : "normal", 
+                abnormality: isV1 ? "deep_s" : (isLateral ? "tall_r" : null),
+                st: isLateral ? -5 : 0, 
+                qrs: "narrow", 
+                p: true, 
+                t: isLateral ? "inverted" : "normal",
+                amplitude: isLateral ? 1.5 : (isV1 ? 1.3 : 1)
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createEarlyRepolLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isPrecordial = lead.startsWith("V");
+            leads[lead] = { 
+                status: isPrecordial ? "normal" : "normal", // Early repol is normal variant
+                st: isPrecordial ? 3 : 0, 
+                qrs: "narrow", 
+                p: true, 
+                t: "normal",
+                jpoint: isPrecordial
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    // Sinus arrhythmia - normal variant with respiratory variation in R-R
+    function createSinusArrhythmiaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "normal",
+                st: 0, 
+                qrs: "narrow", 
+                p: true,  // Normal P waves (unlike AFib)
+                t: "normal",
+                sinusArrhythmia: true  // Flag for variable R-R
+            };
+        });
+        leads.rhythm = { status: "normal" };  // Still considered normal
+        return applyAVRInversion(leads);
+    }
+
+    // De Winter's T-Waves - LAD occlusion equivalent (STEMI-equivalent)
+    // Key findings: Upsloping ST depression at J-point + tall symmetric T waves in V1-V6
+    function createDeWinterLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isPrecordial = lead.startsWith("V");
+            const isAnterior = ["V1", "V2", "V3", "V4", "V5", "V6"].includes(lead);
+            leads[lead] = { 
+                status: isAnterior ? "abnormal" : "normal",
+                abnormality: isAnterior ? "st_depression" : null,
+                st: isAnterior ? -8 : 0,  // J-point depression 1-3mm
+                qrs: "narrow", 
+                p: true, 
+                t: isAnterior ? "hyperacute" : "normal",  // Tall, symmetric T waves
+                amplitude: isAnterior ? 1.3 : 1.0  // Prominent T waves
+            };
+        });
+        // Often has ST elevation in aVR
+        leads.aVR = { 
+            status: "abnormal", 
+            abnormality: "st_elevation",
+            st: 5, qrs: "narrow", p: true, t: "normal"
+        };
+        leads.rhythm = { status: "normal" };
+        return leads;
+    }
+
+    // Wellens' Syndrome - Critical LAD stenosis (pain-free interval)
+    // Type A: Biphasic T waves in V2-V3 (more common)
+    // Type B: Deep symmetric T wave inversions V2-V3
+    function createWellensLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isV2V3 = ["V2", "V3"].includes(lead);
+            const isV1V4 = ["V1", "V4"].includes(lead);
+            leads[lead] = { 
+                status: isV2V3 ? "abnormal" : (isV1V4 ? "abnormal" : "normal"),
+                abnormality: isV2V3 ? "t_biphasic" : (isV1V4 ? "t_inversion" : null),
+                st: 0,  // Isoelectric or minimally elevated ST
+                qrs: "narrow", 
+                p: true, 
+                t: isV2V3 ? "biphasic" : (isV1V4 ? "inverted" : "normal")
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    // Sgarbossa Criteria - STEMI in setting of LBBB
+    // Criteria: Concordant ST elevation ≥1mm, Concordant ST depression ≥1mm in V1-V3, 
+    // Discordant ST elevation ≥5mm
+    function createSgarbossaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isLateral = ["I", "aVL", "V5", "V6"].includes(lead);
+            const isAnterior = ["V1", "V2", "V3"].includes(lead);
+            const isInferior = ["II", "III", "aVF"].includes(lead);
+            
+            leads[lead] = { 
+                status: "abnormal",
+                abnormality: isLateral ? "st_elevation" : (isAnterior ? "st_depression" : "wide_qrs"),
+                // Concordant ST elevation in lateral leads (abnormal in LBBB)
+                st: isLateral ? 8 : (isAnterior ? -10 : 0),
+                qrs: isAnterior ? "wide-lbbb-v1" : "wide-lbbb",
+                p: true, 
+                t: isLateral ? "normal" : "inverted"  // Discordant T waves expected in LBBB
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "wide_qrs" };
+        return applyAVRInversion(leads);
+    }
+
+    // ============================================
+    // ECG DRAWING ENGINE
+    // ============================================
+    
+    function drawECGPath(config, width = 250, height = 200) {
+        // Generate cache key from config
+        const cacheKey = JSON.stringify({...config, width, height});
+        if (pathCache.has(cacheKey)) {
+            return pathCache.get(cacheKey);
+        }
+        
+        const {
+            st = 0,
+            qrs = "narrow",
+            p = true,
+            t = "normal",
+            pr = 160,
+            amplitude = 1,
+            u = false,
+            jpoint = false,
+            qrsPolarity = 1,  // 1 = upright, -1 = inverted (for aVR)
+            rWave = null,     // R-wave amplitude ratio (for precordial progression)
+            sWave = null,     // S-wave amplitude ratio
+            shortqt = false,  // Shortened QT (hypercalcemia)
+            longqt = false,   // Prolonged QT (hypocalcemia, long QT syndrome)
+            concave = false,  // Concave ST elevation (pericarditis)
+            prDepression = false  // PR depression (pericarditis)
+        } = config;
+
+        const y = height / 2;
+        // CALIBRATION: Standard ECG paper
+        // 1 small box = 1mm = 0.04s (40ms) = 5px
+        // 1 large box = 5mm = 0.2s (200ms) = 25px
+        const PX_PER_MM = 5;
+        const MS_PER_MM = 40;
+        const PX_PER_MS = PX_PER_MM / MS_PER_MM;  // 0.125 px/ms
+        const scaleFactor = width / 250;
+        
+        let path = "";
+        let x = 10;
+
+        // Baseline start
+        path += `M ${x} ${y} `;
+
+        // P Wave (~80ms duration)
+        if (p === true) {
+            const pDuration = 80 * PX_PER_MS * scaleFactor;
+            path += `Q ${x + pDuration/2} ${y - 15 * amplitude} ${x + pDuration} ${y} `;
+            x += pDuration;
+        } else if (p === "inverted") {
+            // Inverted P wave (for aVR)
+            const pDuration = 80 * PX_PER_MS * scaleFactor;
+            path += `Q ${x + pDuration/2} ${y + 12 * amplitude} ${x + pDuration} ${y} `;
+            x += pDuration;
+        } else if (p === "fib") {
+            // Fibrillatory baseline - use deterministic pattern for consistent rendering
+            const fibPattern = [3, -2, 4, -3, 2, -4, 3, -2]; // Pre-defined wiggle pattern
+            for (let i = 0; i < 8; i++) {
+                path += `L ${x + 4} ${y + fibPattern[i]} `;
+                x += 4;
+            }
+        } else if (p === "flutter") {
+            // Sawtooth flutter waves
+            for (let i = 0; i < 3; i++) {
+                path += `L ${x + 8} ${y + 12} L ${x + 16} ${y} `;
+                x += 16;
+            }
+        } else if (p === "retrograde") {
+            const pDuration = 80 * PX_PER_MS * scaleFactor;
+            path += `Q ${x + pDuration/2} ${y + 12 * amplitude} ${x + pDuration} ${y} `;
+            x += pDuration;
+        } else {
+            // No P wave
+            path += `L ${x + 15 * scaleFactor} ${y} `;
+            x += 15 * scaleFactor;
+        }
+
+        // PR segment: Calibrated - PR of 200ms = 25px (one large box)
+        // PR segment = total PR interval - P wave duration (~80ms)
+        const prSegmentMs = Math.max(40, pr - 80);
+        const prSegmentPx = prSegmentMs * PX_PER_MS * scaleFactor;
+        
+        // PR depression (pericarditis finding)
+        if (prDepression) {
+            path += `L ${x + prSegmentPx/2} ${y + 4} L ${x + prSegmentPx} ${y} `;
+        } else {
+            path += `L ${x + prSegmentPx} ${y} `;
+        }
+        x += prSegmentPx;
+
+        // QRS Complex - ST offset visual scaling
+        // ST values in library are in display units (not actual mm)
+        // Multiply by 0.5 to get reasonable visual elevation
+        // For STEMI: st=20 renders as ~10mm elevation (2 large boxes)
+        const stOffset = st * PX_PER_MM * 0.5 * scaleFactor;
+        
+        if (qrs === "narrow") {
+            // Normal narrow QRS: 80-100ms = 10-12.5px
+            const qrsDur = 12 * scaleFactor;
+            path += `L ${x + 2} ${y + 5} L ${x + qrsDur/2} ${y - 55 * amplitude} L ${x + qrsDur - 2} ${y + 12} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else if (qrs === "inverted") {
+            // Fully inverted QRS (for aVR) - negative P, negative QRS, negative T
+            const qrsDur = 12 * scaleFactor;
+            // Small r wave down, deep S wave up (inverted appearance)
+            path += `L ${x + 2} ${y - 5} L ${x + qrsDur/2} ${y + 50 * amplitude} L ${x + qrsDur - 2} ${y - 8} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else if (qrs === "progression") {
+            // R-wave progression for precordial leads (V1-V6)
+            // Uses rWave and sWave ratios from config
+            const qrsDur = 14 * scaleFactor;
+            const rHeight = 55 * (rWave || 0.5) * amplitude;
+            const sDepth = 40 * (sWave || 0.5) * amplitude;
+            // Small q, R wave (variable height), S wave (variable depth)
+            path += `L ${x + 2} ${y + 3} `;  // small q
+            path += `L ${x + qrsDur * 0.4} ${y - rHeight} `;  // R wave
+            path += `L ${x + qrsDur * 0.7} ${y + sDepth} `;  // S wave
+            path += `L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else if (qrs === "wide") {
+            // Wide QRS: >120ms = >15px
+            const qrsDur = 24 * scaleFactor;
+            path += `L ${x + 4} ${y + 10} L ${x + qrsDur/2} ${y - 50 * amplitude} L ${x + qrsDur - 4} ${y + 15} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else if (qrs === "wide-vt") {
+            // Monomorphic VTach: Wide but DISTINCT QRS complexes
+            const qrsDur = 32 * scaleFactor;
+            path += `L ${x + 3} ${y + 8} `;
+            path += `L ${x + 10 * scaleFactor} ${y - 55 * amplitude} `;
+            path += `L ${x + 18 * scaleFactor} ${y - 42 * amplitude} `;
+            path += `L ${x + 26 * scaleFactor} ${y + 25} `;
+            path += `L ${x + qrsDur} ${y + 15} `;
+            x += qrsDur;
+            // Discordant ST-T
+            path += `L ${x + 8 * scaleFactor} ${y + 10} `;
+            path += `Q ${x + 20 * scaleFactor} ${y + 32} ${x + 35 * scaleFactor} ${y} `;
+            x += 35 * scaleFactor;
+            path += `L ${width - 10} ${y}`;
+            return path;
+        } else if (qrs === "sine-wave") {
+            // Sine wave for severe hyperkalemia / V-flutter
+            const cycleW = 70 * scaleFactor;
+            path += `Q ${x + cycleW/2} ${y - 55 * amplitude} ${x + cycleW} ${y} `;
+            path += `Q ${x + cycleW * 1.5} ${y + 50 * amplitude} ${x + cycleW * 2} ${y} `;
+            x += cycleW * 2;
+            path += `L ${width - 10} ${y}`;
+            return path;
+        } else if (qrs === "tall-r-post") {
+            // Tall R wave for posterior MI
+            const qrsDur = 14 * scaleFactor;
+            path += `L ${x + 2} ${y + 3} L ${x + qrsDur/2} ${y - 70 * amplitude} L ${x + qrsDur - 2} ${y + 8} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else if (qrs === "wide-lbbb") {
+            const qrsDur = 42 * scaleFactor;
+            path += `L ${x + 5} ${y + 8} L ${x + 15 * scaleFactor} ${y - 45 * amplitude} L ${x + 22 * scaleFactor} ${y - 35 * amplitude} L ${x + 30 * scaleFactor} ${y - 50 * amplitude} L ${x + qrsDur - 5} ${y + 15} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else if (qrs === "wide-lbbb-v1") {
+            const qrsDur = 40 * scaleFactor;
+            path += `L ${x + 5} ${y + 8} L ${x + 15 * scaleFactor} ${y + 60 * amplitude} L ${x + 32 * scaleFactor} ${y - 10} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else if (qrs === "wide-rbbb-v1") {
+            const qrsDur = 40 * scaleFactor;
+            path += `L ${x + 5} ${y - 30 * amplitude} L ${x + 12 * scaleFactor} ${y + 10} L ${x + 22 * scaleFactor} ${y - 45 * amplitude} L ${x + 35 * scaleFactor} ${y + 12} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else if (qrs === "wide-rbbb") {
+            const qrsDur = 40 * scaleFactor;
+            path += `L ${x + 5} ${y - 55 * amplitude} L ${x + 16 * scaleFactor} ${y + 10} L ${x + 32 * scaleFactor} ${y + 50 * amplitude} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else if (qrs === "delta") {
+            // Delta wave (WPW)
+            const qrsDur = 36 * scaleFactor;
+            path += `L ${x + 12 * scaleFactor} ${y - 18} L ${x + 22 * scaleFactor} ${y - 60 * amplitude} L ${x + 32 * scaleFactor} ${y + 15} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        } else {
+            // Default narrow
+            const qrsDur = 12 * scaleFactor;
+            path += `L ${x + 2} ${y + 5} L ${x + qrsDur/2} ${y - 55 * amplitude} L ${x + qrsDur - 2} ${y + 12} L ${x + qrsDur} ${y - stOffset} `;
+            x += qrsDur;
+        }
+
+        // J-point elevation
+        if (jpoint) {
+            path += `L ${x + 5 * scaleFactor} ${y - stOffset - 5} `;
+            x += 5 * scaleFactor;
+        }
+
+        // ST Segment - varies with QT interval
+        // Short QT (hypercalcemia): shortened/absent ST segment
+        // Long QT (hypocalcemia): prolonged ST segment
+        // Concave (pericarditis): upward curving "smiley face" ST
+        let stSegPx = 12 * scaleFactor;
+        if (shortqt) stSegPx = 4 * scaleFactor;  // Shortened ST
+        if (longqt) stSegPx = 22 * scaleFactor;  // Prolonged ST
+        
+        if (concave && st > 0) {
+            // Concave upward ST elevation (pericarditis "smiley face")
+            path += `Q ${x + stSegPx/2} ${y - stOffset - 8} ${x + stSegPx} ${y - stOffset} `;
+        } else {
+            path += `L ${x + stSegPx} ${y - stOffset} `;
+        }
+        x += stSegPx;
+
+        // T Wave (~160ms duration, adjusted for QT)
+        let tHeight = 22 * amplitude;
+        if (t === "peaked") tHeight = 42 * amplitude;
+        else if (t === "inverted") tHeight = -20 * amplitude;
+        else if (t === "flattened") tHeight = 6;
+        else if (t === "hyperacute") tHeight = 38 * amplitude;
+        else if (t === "biphasic") {
+            const tDur = 35 * scaleFactor;
+            path += `Q ${x + tDur/3} ${y - stOffset - 18} ${x + tDur/2} ${y - stOffset} Q ${x + tDur * 0.75} ${y - stOffset + 14} ${x + tDur} ${y} `;
+            x += tDur;
+            path += `L ${width - 10} ${y}`;
+            
+            // Cache and return
+            pathCache.set(cacheKey, path);
+            if (pathCache.size > 500) {
+                const firstKey = pathCache.keys().next().value;
+                pathCache.delete(firstKey);
+            }
+            return path;
+        }
+        
+        // Adjust T wave duration for QT interval
+        let tDuration = 35 * scaleFactor;
+        if (shortqt) tDuration = 25 * scaleFactor;  // Shorter T wave
+        if (longqt) tDuration = 50 * scaleFactor;   // Longer T wave
+        
+        path += `Q ${x + tDuration/2} ${y - stOffset - tHeight} ${x + tDuration} ${y} `;
+        x += tDuration;
+
+        // U Wave (if present - hypokalemia)
+        if (u) {
+            const uDur = 15 * scaleFactor;
+            path += `Q ${x + uDur/2} ${y - 10} ${x + uDur} ${y} `;
+            x += uDur;
+        }
+
+        // End baseline
+        path += `L ${width - 10} ${y}`;
+
+        // Cache the result
+        pathCache.set(cacheKey, path);
+        
+        // Limit cache size to prevent memory issues
+        if (pathCache.size > 500) {
+            const firstKey = pathCache.keys().next().value;
+            pathCache.delete(firstKey);
+        }
+
+        return path;
+    }
+
+    function drawRhythmStrip(config, numBeats = 6, rate = 75) {
+        const height = 200;
+        const y = height / 2;
+        
+        // CALIBRATION: Standard ECG paper at 25mm/sec
+        // 1mm = 5px, so 25mm/sec = 125px/sec
+        // At rate X bpm: RR interval = 60/X seconds = (60/X) * 125 px
+        const PX_PER_SEC = 125;  // 25mm/sec * 5px/mm
+        const rrInterval = (60 / Math.max(30, rate)) * PX_PER_SEC;
+        
+        // Calculate how many beats we need to fill the strip
+        const totalWidth = 1200;
+        const actualNumBeats = Math.ceil(totalWidth / rrInterval) + 1;
+        
+        // Check rhythm type
+        const isAFib = config.p === 'fib';
+        const isSinusArrhythmia = config.sinusArrhythmia === true;
+        
+        let path = `M 0 ${y} `;
+        let currentX = 10;
+        
+        for (let i = 0; i < actualNumBeats; i++) {
+            if (currentX >= totalWidth) break;
+            
+            let thisBeatWidth = rrInterval;
+            
+            if (isAFib) {
+                // AFib: chaotic R-R variation ±35%
+                const variation = ((i * 7 + 3) % 10 - 5) / 10;
+                thisBeatWidth = rrInterval * (1 + variation * 0.35);
+            } else if (isSinusArrhythmia) {
+                // Sinus arrhythmia: smooth sinusoidal R-R variation ±15% 
+                // Simulates respiratory variation (typically 4-6 beat cycle)
+                const phase = (i / 5) * Math.PI * 2;
+                const variation = Math.sin(phase) * 0.15;
+                thisBeatWidth = rrInterval * (1 + variation);
+            }
+            
+            path += drawSingleBeat(config, currentX, y, Math.min(thisBeatWidth - 10, 140), rate);
+            currentX += thisBeatWidth;
+        }
+        
+        // Ensure line extends to full width
+        path += `L ${totalWidth} ${y}`;
+        
+        return path;
+    }
+
+    function drawSingleBeat(config, xStart, y, width, rate = 75) {
+        const {
+            st = 0,
+            qrs = "narrow",
+            p = true,
+            t = "normal",
+            pr = 160,
+            amplitude = 1,
+            u = false
+        } = config;
+
+        let path = "";
+        let x = xStart;
+        // Calibration: 5px = 1mm = 0.04s (40ms)
+        // So PR of 200ms = 25px (5 small boxes = 1 large box)
+        const pxPerMs = 5 / 40;  // 0.125px per ms
+        const scale = width / 140;
+
+        // For sine-wave pattern (severe hyperK / V-flutter)
+        if (qrs === "sine-wave") {
+            path += `L ${x} ${y} `;
+            path += `Q ${x + 30 * scale} ${y - 55 * amplitude} ${x + 60 * scale} ${y} `;
+            path += `Q ${x + 90 * scale} ${y + 50 * amplitude} ${x + 120 * scale} ${y} `;
+            return path;
+        }
+
+        // For VTach - wide but distinct QRS complexes
+        if (qrs === "wide-vt") {
+            path += `L ${x} ${y} `;
+            // Small baseline before QRS
+            path += `L ${x + 5 * scale} ${y} `;
+            // Wide QRS with distinct morphology
+            path += `L ${x + 8 * scale} ${y + 6} `;
+            path += `L ${x + 15 * scale} ${y - 50 * amplitude} `;
+            path += `L ${x + 25 * scale} ${y - 40 * amplitude} `;
+            path += `L ${x + 38 * scale} ${y + 20} `;
+            path += `L ${x + 45 * scale} ${y + 12} `;
+            // Discordant T wave
+            path += `Q ${x + 60 * scale} ${y + 30} ${x + 80 * scale} ${y} `;
+            // Brief return to baseline
+            path += `L ${x + 95 * scale} ${y} `;
+            return path;
+        }
+
+        // P Wave
+        if (p === true) {
+            path += `L ${x} ${y} Q ${x + 10 * scale} ${y - 12} ${x + 20 * scale} ${y} `;
+            x += 20 * scale;
+        } else if (p === "fib") {
+            // Fibrillatory baseline - deterministic pattern
+            const fibPattern = [2.5, -1.5, 3, -2.5, 1.5, -3, 2, -1.5];
+            for (let i = 0; i < 5; i++) {
+                path += `L ${x + 4 * scale} ${y + fibPattern[i % fibPattern.length]} `;
+                x += 4 * scale;
+            }
+        } else if (p === "flutter") {
+            for (let i = 0; i < 2; i++) {
+                path += `L ${x + 5 * scale} ${y + 8} L ${x + 10 * scale} ${y} `;
+                x += 10 * scale;
+            }
+        } else {
+            path += `L ${x + 12 * scale} ${y} `;
+            x += 12 * scale;
+        }
+
+        // PR segment - calibrated: PR interval in ms converted to px
+        // PR of 200ms = 25px, PR of 120ms = 15px
+        const prPx = (pr * pxPerMs) * scale * 0.6;  // Scaled for beat width
+        path += `L ${x + prPx} ${y} `;
+        x += prPx;
+
+        // QRS Complex
+        const stOffset = st * 0.8;
+        
+        if (qrs === "narrow") {
+            // Narrow QRS ~100ms = ~12px
+            path += `L ${x + 2 * scale} ${y + 5} L ${x + 6 * scale} ${y - 50 * amplitude} L ${x + 10 * scale} ${y + 10} L ${x + 12 * scale} ${y - stOffset} `;
+            x += 12 * scale;
+        } else if (qrs === "wide") {
+            // Wide QRS >120ms = >15px
+            path += `L ${x + 4 * scale} ${y + 8} L ${x + 12 * scale} ${y - 45 * amplitude} L ${x + 22 * scale} ${y + 12} L ${x + 28 * scale} ${y - stOffset} `;
+            x += 28 * scale;
+        } else if (qrs === "tall-r-post") {
+            // Tall R for posterior MI
+            path += `L ${x + 2 * scale} ${y + 3} L ${x + 7 * scale} ${y - 65 * amplitude} L ${x + 12 * scale} ${y + 8} L ${x + 15 * scale} ${y - stOffset} `;
+            x += 15 * scale;
+        } else if (qrs === "wide-lbbb" || qrs === "wide-lbbb-v1") {
+            path += `L ${x + 3 * scale} ${y + 5} L ${x + 10 * scale} ${y - 35 * amplitude} L ${x + 16 * scale} ${y - 28 * amplitude} L ${x + 22 * scale} ${y - 38 * amplitude} L ${x + 32 * scale} ${y + 10} L ${x + 38 * scale} ${y - stOffset} `;
+            x += 38 * scale;
+        } else if (qrs === "wide-rbbb-v1" || qrs === "wide-rbbb") {
+            path += `L ${x + 3 * scale} ${y - 22 * amplitude} L ${x + 10 * scale} ${y + 6} L ${x + 17 * scale} ${y - 32 * amplitude} L ${x + 28 * scale} ${y + 8} L ${x + 35 * scale} ${y - stOffset} `;
+            x += 35 * scale;
+        } else if (qrs === "delta") {
+            path += `L ${x + 10 * scale} ${y - 15} L ${x + 17 * scale} ${y - 45 * amplitude} L ${x + 24 * scale} ${y + 10} L ${x + 28 * scale} ${y - stOffset} `;
+            x += 28 * scale;
+        } else {
+            path += `L ${x + 2 * scale} ${y + 5} L ${x + 6 * scale} ${y - 50 * amplitude} L ${x + 10 * scale} ${y + 10} L ${x + 12 * scale} ${y - stOffset} `;
+            x += 12 * scale;
+        }
+
+        // ST Segment
+        path += `L ${x + 10 * scale} ${y - stOffset} `;
+        x += 10 * scale;
+
+        // T Wave
+        let tHeight = 20 * amplitude;
+        if (t === "peaked") tHeight = 40 * amplitude;
+        else if (t === "inverted") tHeight = -18 * amplitude;
+        else if (t === "flattened") tHeight = 5;
+        else if (t === "hyperacute") tHeight = 35 * amplitude;
+        
+        path += `Q ${x + 12 * scale} ${y - stOffset - tHeight} ${x + 25 * scale} ${y} `;
+        x += 25 * scale;
+
+        // U Wave
+        if (u) {
+            path += `Q ${x + 6 * scale} ${y - 6} ${x + 12 * scale} ${y} `;
+            x += 12 * scale;
+        }
+
+        return path;
+    }
+
+    // ============================================
+    // QUICK MARKING MODE
+    // ============================================
+    
+    function setMarkingMode(mode) {
+        // Toggle off if clicking same mode
+        if (state.markingMode === mode) {
+            cancelMarkingMode();
+            return;
+        }
+        
+        state.markingMode = mode;
+        state.dragSelectedLeads.clear();
+        
+        // Update UI
+        const buttons = ['normal', 'abnormal', 'uncertain', 'clear'];
+        buttons.forEach(btn => {
+            const el = getEl(`mark-btn-${btn}`);
+            if (el) el.classList.toggle('active', btn === mode);
+        });
+        
+        // Show indicator
+        const indicator = getEl('marking-mode-indicator');
+        const cancelBtn = getEl('cancel-marking-btn');
+        const grid = getEl('ecg-grid');
+        
+        if (indicator) {
+            indicator.classList.remove('hidden');
+            const modeLabels = {
+                normal: '✓ Click/drag to mark NORMAL',
+                abnormal: '✗ Click/drag to mark ABNORMAL (double-click to specify type)',
+                uncertain: '? Click/drag to mark UNCERTAIN',
+                clear: '⌫ Click/drag to CLEAR marks'
+            };
+            indicator.textContent = modeLabels[mode] || '';
+        }
+        if (cancelBtn) cancelBtn.classList.remove('hidden');
+        if (grid) grid.parentElement.classList.add('drag-mode-active');
+    }
+    
+    function cancelMarkingMode() {
+        state.markingMode = null;
+        state.isDragging = false;
+        state.dragSelectedLeads.clear();
+        
+        // Update UI
+        const buttons = ['normal', 'abnormal', 'uncertain', 'clear'];
+        buttons.forEach(btn => {
+            const el = getEl(`mark-btn-${btn}`);
+            if (el) el.classList.remove('active');
+        });
+        
+        const indicator = getEl('marking-mode-indicator');
+        const cancelBtn = getEl('cancel-marking-btn');
+        const grid = getEl('ecg-grid');
+        
+        if (indicator) indicator.classList.add('hidden');
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+        if (grid) grid.parentElement.classList.remove('drag-mode-active');
+        
+        // Clear drag selection visuals
+        clearDragSelection();
+    }
+    
+    
+    function handleDragStart(e, box, lead) {
+        if (!state.markingMode) return;
+        e.preventDefault();
+        e.stopPropagation();
+        
+        state.isDragging = true;
+        state.dragSelectedLeads.clear();
+        
+        if (lead) {
+            state.dragSelectedLeads.add(lead);
+            box.classList.add('drag-selecting');
+        }
+    }
+    
+    function handleDragOver(e, box, lead) {
+        if (!state.markingMode || !state.isDragging) return;
+        
+        if (lead && !state.dragSelectedLeads.has(lead)) {
+            state.dragSelectedLeads.add(lead);
+            box.classList.add('drag-selecting');
+        }
+    }
+    
+    function handleDragEnd(e) {
+        if (!state.markingMode) return;
+        
+        if (state.isDragging && state.dragSelectedLeads.size > 1) {
+            // Only apply if we actually dragged over multiple leads
+            applyMarkToSelectedLeads();
+        }
+        
+        state.isDragging = false;
+        clearDragSelection();
+    }
+    
+    function handleTouchStart(e) {
+        if (!state.markingMode) return;
+        e.preventDefault();
+        
+        state.isDragging = true;
+        state.dragSelectedLeads.clear();
+        
+        const touch = e.touches[0];
+        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        const leadBox = element?.closest('.lead-box');
+        
+        if (leadBox) {
+            const lead = leadBox.getAttribute('data-lead');
+            if (lead) {
+                state.dragSelectedLeads.add(lead);
+                leadBox.classList.add('drag-selecting');
+            }
+        }
+    }
+    
+    function handleTouchMove(e) {
+        if (!state.markingMode || !state.isDragging) return;
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        const leadBox = element?.closest('.lead-box');
+        
+        if (leadBox) {
+            const lead = leadBox.getAttribute('data-lead');
+            if (lead && !state.dragSelectedLeads.has(lead)) {
+                state.dragSelectedLeads.add(lead);
+                leadBox.classList.add('drag-selecting');
+            }
+        }
+    }
+    
+    function handleQuickMarkClick(e, lead) {
+        if (!state.markingMode) return;
+        
+        // If we just finished a drag with multiple leads, don't also do single click
+        if (state.dragSelectedLeads.size > 1) {
+            state.dragSelectedLeads.clear();
+            return;
+        }
+        
+        e.stopPropagation();
+        
+        // Apply mark to single lead
+        if (state.markingMode === 'clear') {
+            delete state.userMarks[lead];
+        } else {
+            // For abnormal, still need to specify abnormality later
+            state.userMarks[lead] = { 
+                status: state.markingMode,
+                abnormality: null
+            };
+        }
+        
+        renderECGGrid();
+    }
+    
+    function getLeadFromElement(element) {
+        if (!element) return null;
+        return element.getAttribute('data-lead') || element.closest('.lead-box')?.getAttribute('data-lead');
+    }
+    
+    function applyMarkToSelectedLeads() {
+        if (!state.markingMode || state.dragSelectedLeads.size === 0) return;
+        
+        state.dragSelectedLeads.forEach(lead => {
+            if (state.markingMode === 'clear') {
+                delete state.userMarks[lead];
+            } else {
+                state.userMarks[lead] = { 
+                    status: state.markingMode,
+                    abnormality: null
+                };
+            }
+        });
+        
+        state.dragSelectedLeads.clear();
+        renderECGGrid();  // This will call setupLeadEventListeners
+    }
+    
+    function clearDragSelection() {
+        document.querySelectorAll('.drag-selecting').forEach(el => {
+            el.classList.remove('drag-selecting');
+        });
+        state.dragSelectedLeads.clear();
+    }
+
+    // ============================================
+    // UI RENDERING
+    // ============================================
+    function renderECGGrid() {
+        const grid = document.getElementById('ecg-grid');
+        const isTraced = state.currentECG?.isTraced || state.currentECG?.type === 'traced';
+        
+        grid.innerHTML = LEADS.map(lead => {
+            const mark = state.userMarks[lead];
+            const statusClass = mark ? mark.status : '';
+            const ecgData = state.currentECG?.leads?.[lead] || DEFAULT_LEAD_CONFIG;
+            
+            // Territory overlay
+            const territory = getLeadTerritory(lead);
+            const territoryClass = (state.showTerritories && territory) ? `territory-${territory.color}` : '';
+            const territoryLabel = (state.showTerritories && territory) ? 
+                `<span class="territory-label ${territory.color}">${territory.name}</span>` : '';
+            
+            // Check if this is a traced lead
+            const isTracedLead = ecgData.traced && ecgData.path;
+            const pathData = isTracedLead ? ecgData.path : drawECGPath(ecgData);
+            const strokeColor = isTracedLead ? (ecgData.color || '#1e293b') : '#1e293b';
+            const strokeWidth = isTracedLead ? (ecgData.strokeWidth || 2.5) : 2.5;
+            
+            return `
+                <div id="lead-box-${lead}" class="lead-box ecg-paper rounded-xl h-28 ${statusClass} ${territoryClass}" data-lead="${lead}">
+                    <span class="lead-label">${lead}</span>
+                    ${isTracedLead ? '<span class="absolute top-1 right-8 text-[8px] text-blue-500 font-medium">TRACED</span>' : ''}
+                    ${mark ? `<span class="status-badge ${mark.status}">${mark.status === 'normal' ? '✓' : mark.status === 'abnormal' ? '✗' : '?'}</span>` : ''}
+                    ${mark?.abnormality ? `<span class="abnormality-tag">${formatAbnormality(mark.abnormality)}</span>` : ''}
+                    ${territoryLabel}
+                    <svg viewBox="0 0 250 200" preserveAspectRatio="none" class="w-full h-full">
+                        ${pathData ? `<path d="${pathData}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>` : ''}
+                    </svg>
+                </div>
+            `;
+        }).join('');
+
+        // Rhythm strip
+        const rhythmBox = document.getElementById('rhythm-strip-box');
+        const rhythmMark = state.userMarks.rhythm;
+        rhythmBox.className = `lead-box rhythm-strip rounded-xl h-24 relative ${rhythmMark?.status || ''}`;
+        rhythmBox.setAttribute('data-lead', 'rhythm');
+        
+        // Use selected rhythm strip lead
+        const rhythmLead = state.rhythmStripLead || 'II';
+        const rhythmConfig = state.currentECG?.leads?.[rhythmLead] || state.currentECG?.leads?.II || DEFAULT_LEAD_CONFIG;
+        const ecgRate = state.currentECG?.rate || 75;
+        
+        // Check if rhythm strip should use traced path
+        const rhythmData = state.currentECG?.leads?.rhythm;
+        const isTracedRhythm = rhythmData?.traced && rhythmData?.path;
+        
+        // Update label
+        const rhythmLabel = document.getElementById('rhythm-strip-label');
+        if (rhythmLabel) {
+            rhythmLabel.textContent = isTracedRhythm ? 
+                'Rhythm Strip (Traced)' : 
+                `Lead ${rhythmLead} Rhythm Strip`;
+        }
+        
+        if (isTracedRhythm) {
+            // Scale traced rhythm path to fit 1200x200 viewBox
+            document.getElementById('rhythm-strip-svg').innerHTML = `
+                <path d="${rhythmData.path}" fill="none" stroke="${rhythmData.color || '#1e293b'}" stroke-width="${rhythmData.strokeWidth || 2}" transform="scale(4.8, 1)"/>
+            `;
+        } else {
+            document.getElementById('rhythm-strip-svg').innerHTML = `
+                <path d="${drawRhythmStrip(rhythmConfig, 8, ecgRate)}" fill="none" stroke="#1e293b" stroke-width="2"/>
+            `;
+        }
+
+        updateMarkingSummary();
+        
+        // Set up event listeners for leads (handles both modal and drag marking)
+        setupLeadEventListeners();
+    }
+    
+    function setupLeadEventListeners() {
+        const grid = getEl('ecg-grid');
+        if (!grid) return;
+        
+        const leadBoxes = grid.querySelectorAll('.lead-box');
+        const rhythmBox = getEl('rhythm-strip-box');
+        
+        const allBoxes = [...leadBoxes];
+        if (rhythmBox) allBoxes.push(rhythmBox);
+        
+        allBoxes.forEach(box => {
+            const lead = box.getAttribute('data-lead');
+            if (!lead) return;
+            
+            // Mouse events for drag
+            box.addEventListener('mousedown', (e) => {
+                if (state.markingMode) {
+                    handleDragStart(e, box, lead);
+                }
+            });
+            
+            box.addEventListener('mouseenter', (e) => {
+                if (state.markingMode && state.isDragging) {
+                    handleDragOver(e, box, lead);
+                }
+            });
+            
+            // Click handler - either quick mark or open modal
+            box.addEventListener('click', (e) => {
+                if (state.markingMode) {
+                    handleQuickMarkClick(e, lead);
+                } else {
+                    openLeadModal(lead);
+                }
+            });
+            
+            // Double-click ALWAYS opens modal (even in marking mode)
+            // This lets users specify abnormalities after quick-marking
+            box.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openLeadModal(lead);
+            });
+            
+            // Touch events
+            box.addEventListener('touchstart', (e) => {
+                if (state.markingMode) {
+                    handleTouchStart(e);
+                }
+            }, { passive: false });
+            
+            box.addEventListener('touchmove', handleTouchMove, { passive: false });
+            box.addEventListener('touchend', handleDragEnd);
+        });
+        
+        // Global mouseup
+        document.removeEventListener('mouseup', handleGlobalMouseUp);
+        document.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+    
+    function handleGlobalMouseUp(e) {
+        if (state.markingMode && state.isDragging) {
+            handleDragEnd(e);
+        }
+    }
+
+    function toggleTerritories() {
+        state.showTerritories = !state.showTerritories;
+        
+        const btn = document.getElementById('territory-toggle');
+        const legend = document.getElementById('territory-legend');
+        const text = document.getElementById('territory-toggle-text');
+        
+        if (state.showTerritories) {
+            btn.classList.remove('btn-outline');
+            btn.classList.add('btn-primary');
+            text.textContent = 'Hide Artery Territories';
+            legend.classList.remove('hidden');
+        } else {
+            btn.classList.add('btn-outline');
+            btn.classList.remove('btn-primary');
+            text.textContent = 'Show Artery Territories';
+            legend.classList.add('hidden');
+        }
+        
+        renderECGGrid();
+    }
+
+    function updateRhythmStrip() {
+        if (!state.currentECG) return;
+        
+        const selectedLead = document.getElementById('rhythm-lead-select').value;
+        state.rhythmStripLead = selectedLead;
+        
+        // Update label
+        document.getElementById('rhythm-strip-label').textContent = `Lead ${selectedLead} Rhythm Strip`;
+        
+        // Get config for selected lead
+        const rhythmConfig = state.currentECG.leads[selectedLead] || state.currentECG.leads.II || DEFAULT_LEAD_CONFIG;
+        const ecgRate = state.currentECG.rate || 75;
+        
+        document.getElementById('rhythm-strip-svg').innerHTML = `
+            <path d="${drawRhythmStrip(rhythmConfig, 8, ecgRate)}" fill="none" stroke="#1e293b" stroke-width="2"/>
+        `;
+    }
+
+    function checkAxis() {
+        const leadI = document.getElementById('axis-lead-i').value;
+        const leadAVF = document.getElementById('axis-lead-avf').value;
+        const userAxis = document.getElementById('axis-interpretation').value;
+        const feedback = document.getElementById('axis-feedback');
+        
+        if (!leadI || !leadAVF || !userAxis) {
+            feedback.innerHTML = '<p class="text-xs text-orange-600">Please fill in all fields</p>';
+            feedback.classList.remove('hidden');
+            return;
+        }
+        
+        // Determine correct axis based on leads I and aVF
+        let correctAxis = '';
+        if (leadI === 'positive' && leadAVF === 'positive') {
+            correctAxis = 'normal';
+        } else if (leadI === 'positive' && leadAVF === 'negative') {
+            correctAxis = 'lad';
+        } else if (leadI === 'negative' && leadAVF === 'positive') {
+            correctAxis = 'rad';
+        } else if (leadI === 'negative' && leadAVF === 'negative') {
+            correctAxis = 'extreme';
+        } else if (leadI === 'isoelectric') {
+            correctAxis = leadAVF === 'positive' ? 'normal' : 'lad';  // Axis ~90° or ~-90°
+        } else if (leadAVF === 'isoelectric') {
+            correctAxis = leadI === 'positive' ? 'normal' : 'rad';  // Axis ~0° or ~180°
+        }
+        
+        const axisLabels = {
+            normal: 'Normal Axis',
+            lad: 'Left Axis Deviation',
+            rad: 'Right Axis Deviation',
+            extreme: 'Extreme Axis Deviation'
+        };
+        
+        // Helper to get display symbol
+        const getSymbol = (val) => {
+            if (val === 'positive') return '+';
+            if (val === 'negative') return '−';
+            return '≈';
+        };
+        
+        if (userAxis === correctAxis) {
+            feedback.innerHTML = `
+                <div class="p-2 bg-green-50 rounded text-xs text-green-800">
+                    <strong>✓ Correct!</strong> Lead I (${getSymbol(leadI)}) and aVF (${getSymbol(leadAVF)}) = ${axisLabels[correctAxis]}
+                </div>
+            `;
+        } else {
+            feedback.innerHTML = `
+                <div class="p-2 bg-red-50 rounded text-xs text-red-800">
+                    <strong>✗ Incorrect.</strong> Lead I (${getSymbol(leadI)}) and aVF (${getSymbol(leadAVF)}) = <strong>${axisLabels[correctAxis]}</strong>
+                    <p class="mt-1 text-red-600">Remember: I+ aVF+ = Normal, I+ aVF− = LAD, I− aVF+ = RAD, I− aVF− = Extreme</p>
+                </div>
+            `;
+        }
+        feedback.classList.remove('hidden');
+    }
+
+    function formatAbnormality(code) {
+        const labels = {
+            bradycardia: "Brady", tachycardia: "Tachy",
+            absent_p: "No P", p_mitrale: "P mitrale", p_pulmonale: "P pulmonale",
+            retrograde_p: "Retro P", flutter_waves: "Flutter", fib_waves: "AFib",
+            short_pr: "Short PR", long_pr: "Long PR", variable_pr: "Var PR",
+            wide_qrs: "Wide QRS", pathologic_q: "Path Q", low_voltage: "Low V",
+            delta_wave: "Delta", rsr_prime: "RSR'", deep_s: "Deep S", tall_r: "Tall R",
+            poor_r_prog: "Poor R prog",
+            st_elevation: "ST↑", st_depression: "ST↓", st_coved: "Coved ST", st_concave: "Concave ST",
+            t_inversion: "T inv", t_peaked: "Peaked T", t_flattened: "Flat T",
+            t_biphasic: "Biphasic T", t_hyperacute: "Hyperacute T",
+            long_qt: "Long QT", short_qt: "Short QT",
+            prominent_u: "Prominent U",
+            av_dissociation: "AV dissoc", escape_rhythm: "Escape", osborn_wave: "Osborn J"
+        };
+        return labels[code] || code;
+    }
+
+    function updateMarkingSummary() {
+        const summary = document.getElementById('marking-summary');
+        const marks = Object.entries(state.userMarks);
+        
+        if (marks.length === 0) {
+            summary.innerHTML = '<p class="text-slate-400 text-center py-4">No leads marked yet</p>';
+            return;
+        }
+
+        const grouped = { normal: [], abnormal: [], uncertain: [] };
+        marks.forEach(([lead, data]) => {
+            grouped[data.status].push({ lead, ...data });
+        });
+
+        let html = '';
+        
+        if (grouped.normal.length) {
+            html += `
+                <div class="p-2 bg-green-50 rounded-lg">
+                    <p class="text-xs font-semibold text-green-700 mb-1">✓ Normal (${grouped.normal.length})</p>
+                    <p class="text-xs text-green-600">${grouped.normal.map(m => m.lead).join(', ')}</p>
+                </div>
+            `;
+        }
+        
+        if (grouped.abnormal.length) {
+            html += `
+                <div class="p-2 bg-red-50 rounded-lg">
+                    <p class="text-xs font-semibold text-red-700 mb-1">✗ Abnormal (${grouped.abnormal.length})</p>
+                    ${grouped.abnormal.map(m => `
+                        <p class="text-xs text-red-600">${m.lead}: ${formatAbnormality(m.abnormality)}</p>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        if (grouped.uncertain.length) {
+            html += `
+                <div class="p-2 bg-yellow-50 rounded-lg">
+                    <p class="text-xs font-semibold text-yellow-700 mb-1">? Uncertain (${grouped.uncertain.length})</p>
+                    <p class="text-xs text-yellow-600">${grouped.uncertain.map(m => m.lead).join(', ')}</p>
+                </div>
+            `;
+        }
+
+        summary.innerHTML = html;
+    }
+
+    // ============================================
+    // MODAL HANDLERS
+    // ============================================
+    function openLeadModal(lead) {
+        if (!state.currentECG) {
+            alert('Please select an ECG first!');
+            return;
+        }
+        
+        state.currentLead = lead;
+        const territory = getLeadTerritory(lead);
+        const territoryInfo = territory ? 
+            `<span class="text-xs ml-2 px-2 py-0.5 rounded ${territory.color === 'lad' ? 'bg-blue-100 text-blue-700' : territory.color === 'lcx' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'}">${territory.name} → ${territory.territory}</span>` : '';
+        
+        document.getElementById('modal-lead-title').innerHTML = (lead === 'rhythm' ? 'Lead II Rhythm Strip' : `Lead ${lead}`) + territoryInfo;
+        
+        // Preview ECG - handle traced paths
+        const ecgData = state.currentECG.leads[lead] || state.currentECG.leads.II || DEFAULT_LEAD_CONFIG;
+        const isTracedLead = ecgData.traced && ecgData.path;
+        
+        if (isTracedLead) {
+            // Scale traced path to fit 300x150 viewBox
+            document.getElementById('modal-ecg-preview').innerHTML = `
+                <svg viewBox="0 0 250 200" preserveAspectRatio="xMidYMid meet" class="w-full h-full">
+                    <path d="${ecgData.path}" fill="none" stroke="${ecgData.color || '#1e293b'}" stroke-width="${ecgData.strokeWidth || 2.5}"/>
+                </svg>
+            `;
+        } else {
+            document.getElementById('modal-ecg-preview').innerHTML = `
+                <svg viewBox="0 0 300 150" preserveAspectRatio="none" class="w-full h-full">
+                    <path d="${drawECGPath(ecgData, 300, 150)}" fill="none" stroke="#1e293b" stroke-width="2.5"/>
+                </svg>
+            `;
+        }
+        
+        // Pre-populate with existing mark if any
+        const existingMark = state.userMarks[lead];
+        const abnormalitySelector = document.getElementById('abnormality-selector');
+        const abnormalityDropdown = document.getElementById('abnormality-type');
+        
+        // Reset radio buttons
+        document.querySelectorAll('input[name="lead-status"]').forEach(radio => {
+            radio.checked = false;
+        });
+        
+        if (existingMark) {
+            // Check the corresponding radio button
+            const radio = document.querySelector(`input[name="lead-status"][value="${existingMark.status}"]`);
+            if (radio) radio.checked = true;
+            
+            // Show abnormality selector if marked abnormal
+            if (existingMark.status === 'abnormal') {
+                abnormalitySelector.classList.remove('hidden');
+                abnormalityDropdown.value = existingMark.abnormality || '';
+            } else {
+                abnormalitySelector.classList.add('hidden');
+                abnormalityDropdown.value = '';
+            }
+        } else {
+            abnormalitySelector.classList.add('hidden');
+            abnormalityDropdown.value = '';
+        }
+        
+        document.getElementById('lead-modal').classList.add('active');
+    }
+
+    function closeLeadModal() {
+        document.getElementById('lead-modal').classList.remove('active');
+        state.currentLead = null;
+    }
+
+    function markLead(status) {
+        if (status === 'abnormal') {
+            document.getElementById('abnormality-selector').classList.remove('hidden');
+            state.userMarks[state.currentLead] = { status: 'abnormal', abnormality: null };
+        } else {
+            state.userMarks[state.currentLead] = { status };
+            closeLeadModal();
+            renderECGGrid();
+        }
+    }
+
+    function confirmAbnormality() {
+        const abnormality = document.getElementById('abnormality-type').value;
+        if (!abnormality) {
+            alert('Please select an abnormality');
+            return;
+        }
+        
+        state.userMarks[state.currentLead] = { status: 'abnormal', abnormality };
+        closeLeadModal();
+        renderECGGrid();
+    }
+
+    // ============================================
+    // ECG LOADING
+    // ============================================
+    function loadSelectedECG() {
+        const selector = document.getElementById('ecg-selector');
+        const ecgId = selector.value;
+        
+        if (!ecgId) return;
+        
+        // Clear path cache for new ECG
+        pathCache.clear();
+        
+        state.currentECG = ecgLibrary[ecgId];
+        state.userMarks = {};
+        
+        document.getElementById('ecg-title').textContent = state.currentECG.title;
+        document.getElementById('ecg-clinical').textContent = state.currentECG.clinical;
+        document.getElementById('score-card').classList.add('hidden');
+        document.getElementById('axis-feedback').classList.add('hidden');
+        
+        // Reset axis inputs
+        document.getElementById('axis-lead-i').value = '';
+        document.getElementById('axis-lead-avf').value = '';
+        document.getElementById('axis-interpretation').value = '';
+        
+        // Auto-select best rhythm strip lead based on pathology
+        const rhythmLeadSelect = document.getElementById('rhythm-lead-select');
+        if (rhythmLeadSelect) {
+            // V1 is better for BBB, Brugada, RBBB patterns
+            const useV1 = ['brugada', 'rbbb', 'lbbb', 'wpw'].some(key => ecgId.includes(key)) ||
+                          state.currentECG.leads?.V1?.qrs?.includes('rbbb') ||
+                          state.currentECG.leads?.V1?.qrs?.includes('lbbb');
+            
+            rhythmLeadSelect.value = useV1 ? 'V1' : 'II';
+            state.rhythmStripLead = useV1 ? 'V1' : 'II';
+        }
+        
+        renderECGGrid();
+    }
+
+    // ECG Category Mapping for Randomizer
+    const ECG_CATEGORIES = {
+        sample: ['sample_0', 'sample_1', 'sample_2', 'sample_3', 'sample_4'],
+        normal: ['nsr', 'sinus_arrhythmia', 'early_repol'],
+        rate: ['sinus_brady', 'sinus_tachy'],
+        rhythm: ['afib', 'aflutter', 'vtach', 'svt', 'sinus_brady', 'sinus_tachy'],
+        block: ['first_avb', 'second_avb_1', 'second_avb_2', 'third_avb', 'lbbb', 'rbbb'],
+        stemi: ['anterior_stemi', 'inferior_stemi', 'lateral_stemi', 'posterior_mi', 'nstemi', 'de_winter', 'wellens', 'sgarbossa'],
+        electrolyte: ['hyperkalemia', 'hyperkalemia_severe', 'hypokalemia', 'hypercalcemia', 'hypocalcemia'],
+        other: ['wpw', 'long_qt', 'brugada', 'pericarditis', 'pe', 'lvh', 'rvh']
+    };
+
+    // Track recent randoms to avoid immediate repeats
+    let randomHistory = [];
+    const MAX_HISTORY = 5;
+
+    function loadRandomECG() {
+        const categorySelect = getEl('random-category');
+        const category = categorySelect?.value || 'all';
+        
+        // Get available ECGs for this category
+        let availableKeys;
+        if (category === 'all') {
+            // Get all keys from library except imported/custom
+            availableKeys = Object.keys(ecgLibrary).filter(k => 
+                !k.startsWith('imported_') && !k.startsWith('custom_')
+            );
+        } else {
+            availableKeys = ECG_CATEGORIES[category] || [];
+            // Filter to only include keys that exist in library
+            availableKeys = availableKeys.filter(k => ecgLibrary[k]);
+        }
+        
+        if (availableKeys.length === 0) {
+            alert('No ECGs available in this category');
+            return;
+        }
+        
+        // Filter out recent history to avoid repeats
+        let candidates = availableKeys.filter(k => !randomHistory.includes(k));
+        
+        // If all have been shown recently, reset
+        if (candidates.length === 0) {
+            randomHistory = [];
+            candidates = availableKeys;
+        }
+        
+        // Pick random from candidates
+        const randomIndex = Math.floor(Math.random() * candidates.length);
+        const selectedKey = candidates[randomIndex];
+        
+        // Add to history
+        randomHistory.push(selectedKey);
+        if (randomHistory.length > MAX_HISTORY) {
+            randomHistory.shift();
+        }
+        
+        // Update selector dropdown to show selected ECG
+        const selector = getEl('ecg-selector');
+        if (selector) {
+            selector.value = selectedKey;
+        }
+        
+        // Load the ECG
+        loadSelectedECG();
+        
+        // Visual feedback
+        const randomBtn = document.querySelector('button[onclick="loadRandomECG()"]');
+        if (randomBtn) {
+            randomBtn.classList.add('animate-pulse');
+            setTimeout(() => randomBtn.classList.remove('animate-pulse'), 300);
+        }
+    }
+
+    function clearAllMarks() {
+        state.userMarks = {};
+        
+        // Hide score card
+        const scoreCard = getEl('score-card');
+        if (scoreCard) scoreCard.classList.add('hidden');
+        
+        // Clear correct/incorrect highlighting from all lead boxes
+        ALL_LEADS.forEach(lead => {
+            const box = getEl(lead === 'rhythm' ? 'rhythm-strip-box' : `lead-box-${lead}`);
+            if (box) {
+                box.classList.remove('correct-answer', 'incorrect-answer');
+            }
+        });
+        
+        renderECGGrid();
+    }
+
+    // ============================================
+    // SCORING & ANSWERS
+    // ============================================
+    function checkAnswers() {
+        if (!state.currentECG) {
+            alert('Please select an ECG first!');
+            return;
+        }
+
+        let correct = 0;
+        let total = 0;
+
+        ALL_LEADS.forEach(lead => {
+            const expected = state.currentECG.leads?.[lead];
+            if (!expected) return;
+            
+            total++;
+            // Default unmarked leads to "normal"
+            const userMark = state.userMarks[lead] || { status: 'normal', abnormality: null };
+            const boxId = lead === 'rhythm' ? 'rhythm-strip-box' : `lead-box-${lead}`;
+            const box = getEl(boxId);
+            
+            if (!box) return;
+            
+            // Clear previous highlighting
+            box.classList.remove('correct-answer', 'incorrect-answer');
+            
+            if (userMark.status === expected.status) {
+                if (expected.status === 'abnormal') {
+                    if (userMark.abnormality === expected.abnormality) {
+                        correct++;
+                        box.classList.add('correct-answer');
+                    } else {
+                        box.classList.add('incorrect-answer');
+                    }
+                } else {
+                    correct++;
+                    box.classList.add('correct-answer');
+                }
+            } else {
+                box.classList.add('incorrect-answer');
+            }
+        });
+
+        const percent = total > 0 ? Math.round((correct / total) * 100) : 0;
+        
+        const scoreDisplay = getEl('score-display');
+        const scoreDetail = getEl('score-detail');
+        const scoreCard = getEl('score-card');
+        
+        if (scoreDisplay) scoreDisplay.textContent = `${percent}%`;
+        if (scoreDetail) scoreDetail.textContent = `${correct} of ${total} leads correct`;
+        if (scoreCard) scoreCard.classList.remove('hidden');
+    }
+
+    function showAnswerKey() {
+        if (!state.currentECG) {
+            alert('Please select an ECG first!');
+            return;
+        }
+
+        let content = `
+            <div class="mb-4 p-4 bg-blue-50 rounded-xl">
+                <h4 class="font-bold text-blue-800">${state.currentECG.title}</h4>
+                <p class="text-sm text-blue-600 mt-1"><strong>Diagnosis:</strong> ${state.currentECG.diagnosis || 'Not specified'}</p>
+                <p class="text-sm text-blue-600"><strong>Rate:</strong> ${state.currentECG.rate || 75} bpm</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+        `;
+
+        ALL_LEADS.forEach(lead => {
+            const data = state.currentECG.leads?.[lead];
+            if (!data) return;
+            
+            const isNormal = data.status === 'normal';
+            const statusColor = isNormal ? 'green' : 'red';
+            content += `
+                <div class="p-3 bg-${statusColor}-50 rounded-lg border border-${statusColor}-200">
+                    <p class="font-bold text-${statusColor}-800">${lead === 'rhythm' ? 'Rhythm Strip' : lead}</p>
+                    <p class="text-xs text-${statusColor}-600 capitalize">${data.status}</p>
+                    ${data.abnormality ? `<p class="text-xs text-${statusColor}-700 font-medium mt-1">${formatAbnormality(data.abnormality)}</p>` : ''}
+                </div>
+            `;
+        });
+
+        content += '</div>';
+        
+        const answerContent = getEl('answer-key-content');
+        const answerModal = getEl('answer-modal');
+        
+        if (answerContent) answerContent.innerHTML = content;
+        if (answerModal) answerModal.classList.add('active');
+    }
+
+    function closeAnswerModal() {
+        document.getElementById('answer-modal').classList.remove('active');
+    }
+
+    // ============================================
+    // IMPORT/EXPORT
+    // ============================================
+    function showImportModal() {
+        document.getElementById('import-data').value = '';
+        document.getElementById('import-modal').classList.add('active');
+    }
+
+    function closeImportModal() {
+        document.getElementById('import-modal').classList.remove('active');
+    }
+
+    function importECG() {
+        const importData = document.getElementById('import-data').value.trim();
+        
+        if (!importData) {
+            alert('Please paste ECG JSON data');
+            return;
+        }
+        
+        try {
+            const data = JSON.parse(importData);
+            
+            // Validate required fields
+            if (!data.title || typeof data.title !== 'string') {
+                throw new Error('Missing or invalid "title" field');
+            }
+            if (!data.leads || typeof data.leads !== 'object') {
+                throw new Error('Missing or invalid "leads" object');
+            }
+            
+            // Check if this is a traced ECG
+            const isTraced = data.type === 'traced';
+            if (isTraced) {
+                data.isTraced = true;
+            }
+            
+            // Validate lead structure
+            const requiredLeads = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6'];
+            const missingLeads = requiredLeads.filter(l => !data.leads[l]);
+            if (missingLeads.length > 0) {
+                console.warn(`Warning: Missing leads: ${missingLeads.join(', ')}. Using defaults.`);
+                // Fill in missing leads with defaults
+                missingLeads.forEach(l => {
+                    if (isTraced) {
+                        data.leads[l] = { status: "normal", traced: true, path: "" };
+                    } else {
+                        data.leads[l] = { status: "normal", st: 0, qrs: "narrow", p: true, t: "normal" };
+                    }
+                });
+            }
+            
+            // Ensure rhythm exists
+            if (!data.leads.rhythm) {
+                data.leads.rhythm = { status: "normal" };
+            }
+            
+            // Set defaults for missing fields
+            data.rate = data.rate || 75;
+            data.clinical = data.clinical || '';
+            data.diagnosis = data.diagnosis || '';
+
+            // Add to library with unique key
+            const key = 'imported_' + Date.now();
+            ecgLibrary[key] = data;
+            
+            // Add to selector
+            const selector = document.getElementById('ecg-selector');
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = isTraced ? `🖌️ ${data.title}` : `📥 ${data.title}`;
+            selector.insertBefore(option, selector.firstChild);
+            selector.value = key;
+            
+            closeImportModal();
+            loadSelectedECG();
+            
+            alert(`ECG imported successfully!${isTraced ? ' (Traced ECG)' : ''}`);
+        } catch (e) {
+            alert('Error importing ECG: ' + e.message + '\n\nPlease check the JSON format.');
+            console.error('Import error:', e);
+        }
+    }
+
+    function exportECG() {
+        if (!state.currentECG) {
+            alert('Please select an ECG first!');
+            return;
+        }
+
+        const exportData = JSON.stringify(state.currentECG, null, 2);
+        
+        // Create download
+        const blob = new Blob([exportData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ecg_${state.currentECG.title.replace(/\s+/g, '_').toLowerCase()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // ============================================
+    // DESIGNER MODE
+    // ============================================
+    function openDesignerMode() {
+        // Initialize lead designer
+        const leadDesigner = document.getElementById('lead-designer');
+        leadDesigner.innerHTML = [...LEADS, 'rhythm'].map(lead => `
+            <div class="p-3 bg-slate-50 rounded-lg">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-semibold text-sm">${lead === 'rhythm' ? 'Rhythm Strip' : lead}</span>
+                    <select id="design-status-${lead}" class="text-xs py-1" onchange="toggleLeadAbnormality('${lead}')">
+                        <option value="normal">Normal</option>
+                        <option value="abnormal">Abnormal</option>
+                    </select>
+                </div>
+                <div id="design-abnorm-${lead}" class="hidden">
+                    <select id="design-abnorm-type-${lead}" class="w-full text-xs" onchange="handleAbnormalityChange('${lead}')">
+                        <option value="">Select abnormality...</option>
+                        <option value="st_elevation">ST Elevation</option>
+                        <option value="st_depression">ST Depression</option>
+                        <option value="t_inversion">T Inversion</option>
+                        <option value="t_peaked">Peaked T</option>
+                        <option value="pathologic_q">Pathologic Q</option>
+                        <option value="wide_qrs">Wide QRS</option>
+                        <option value="delta_wave">Delta Wave</option>
+                        <option value="absent_p">Absent P</option>
+                        <option value="flutter_waves">Flutter Waves</option>
+                        <option value="fib_waves">Fib Waves</option>
+                    </select>
+                    <div class="mt-2">
+                        <label class="text-xs text-slate-500">ST Offset (mm)</label>
+                        <input type="range" id="design-st-${lead}" min="-20" max="25" value="0" class="w-full">
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('designer-modal').classList.add('active');
+    }
+
+    function toggleLeadAbnormality(lead) {
+        const status = document.getElementById(`design-status-${lead}`).value;
+        const abnormDiv = document.getElementById(`design-abnorm-${lead}`);
+        abnormDiv.classList.toggle('hidden', status === 'normal');
+    }
+
+    // Separate handler for abnormality change - called via onchange in HTML
+    function handleAbnormalityChange(lead) {
+        const abnormType = document.getElementById(`design-abnorm-type-${lead}`)?.value;
+        if (abnormType === 'st_elevation') {
+            suggestReciprocalChanges(lead);
+        }
+    }
+
+    function suggestReciprocalChanges(lead) {
+        const abnormType = document.getElementById(`design-abnorm-type-${lead}`).value;
+        const reciprocalLeads = getReciprocalLeads(lead);
+        
+        if (abnormType === 'st_elevation' && reciprocalLeads.length > 0) {
+            const shouldApply = confirm(
+                `ST elevation in ${lead} typically shows reciprocal ST depression in ${reciprocalLeads.join(', ')}.\n\nWould you like to automatically set ST depression in these leads?`
+            );
+            
+            if (shouldApply) {
+                reciprocalLeads.forEach(recipLead => {
+                    const statusSelect = document.getElementById(`design-status-${recipLead}`);
+                    const abnormDiv = document.getElementById(`design-abnorm-${recipLead}`);
+                    const abnormSelect = document.getElementById(`design-abnorm-type-${recipLead}`);
+                    const stSlider = document.getElementById(`design-st-${recipLead}`);
+                    
+                    if (statusSelect) statusSelect.value = 'abnormal';
+                    if (abnormDiv) abnormDiv.classList.remove('hidden');
+                    if (abnormSelect) abnormSelect.value = 'st_depression';
+                    if (stSlider) stSlider.value = -8;
+                });
+            }
+        }
+    }
+
+    function closeDesignerModal() {
+        document.getElementById('designer-modal').classList.remove('active');
+    }
+
+    function saveDesign() {
+        const newECG = buildDesignECG();
+        
+        if (!newECG.title || newECG.title === 'Custom ECG') {
+            const userTitle = prompt('Enter a title for this ECG:', 'My Custom ECG');
+            if (userTitle) newECG.title = userTitle;
+        }
+        
+        // Add to library
+        const key = 'custom_' + Date.now();
+        ecgLibrary[key] = newECG;
+        
+        // Add to selector
+        const selector = document.getElementById('ecg-selector');
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = `✏️ ${newECG.title}`;
+        selector.insertBefore(option, selector.querySelector('optgroup'));
+        selector.value = key;
+        
+        closeDesignerModal();
+        loadSelectedECG();
+        
+        alert(`ECG "${newECG.title}" saved and loaded!`);
+    }
+
+    function previewDesign() {
+        const previewECG = buildDesignECG();
+        
+        // Create preview modal content
+        const previewHTML = `
+            <div class="mb-4">
+                <h4 class="font-bold text-lg">${previewECG.title || 'Untitled ECG'}</h4>
+                <p class="text-sm text-slate-500">${previewECG.clinical || 'No clinical scenario'}</p>
+                <p class="text-sm text-blue-600 font-medium mt-1">Diagnosis: ${previewECG.diagnosis || 'Not specified'}</p>
+                <p class="text-xs text-slate-400 mt-1">Rate: ${previewECG.rate} bpm</p>
+            </div>
+            <div class="grid grid-cols-4 gap-2 mb-4">
+                ${LEADS.map(lead => {
+                    const config = previewECG.leads[lead] || DEFAULT_LEAD_CONFIG;
+                    return `
+                        <div class="relative h-16 ecg-paper rounded border ${config.status === 'abnormal' ? 'border-red-300' : 'border-slate-200'}">
+                            <span class="absolute top-1 left-1 text-[9px] font-bold text-red-700 bg-white px-1 rounded">${lead}</span>
+                            <svg viewBox="0 0 250 200" preserveAspectRatio="none" class="w-full h-full">
+                                <path d="${drawECGPath(config)}" fill="none" stroke="#1e293b" stroke-width="2"/>
+                            </svg>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            <div class="relative h-16 rhythm-strip rounded border border-slate-200">
+                <span class="absolute top-1 left-1 text-[9px] font-bold text-red-700 bg-white px-1 rounded">Rhythm</span>
+                <svg viewBox="0 0 1000 200" preserveAspectRatio="none" class="w-full h-full">
+                    <path d="${drawRhythmStrip(previewECG.leads['II'] || DEFAULT_LEAD_CONFIG, 6, previewECG.rate)}" fill="none" stroke="#1e293b" stroke-width="2"/>
+                </svg>
+            </div>
+        `;
+        
+        const answerContent = getEl('answer-key-content');
+        const answerModal = getEl('answer-modal');
+        const modalHeader = answerModal?.querySelector('h3');
+        
+        if (answerContent) answerContent.innerHTML = previewHTML;
+        if (modalHeader) modalHeader.textContent = '👁️ ECG Preview';
+        if (answerModal) answerModal.classList.add('active');
+    }
+
+    function buildDesignECG() {
+        const title = getEl('design-title')?.value || 'Custom ECG';
+        const clinical = getEl('design-clinical')?.value || '';
+        const diagnosis = getEl('design-diagnosis')?.value || '';
+        const rate = parseInt(getEl('design-rate')?.value) || 75;
+        const pr = parseInt(getEl('design-pr')?.value) || 160;
+        const qrsType = getEl('design-qrs')?.value || 'narrow';
+        const pType = getEl('design-p')?.value || 'normal';
+
+        const leads = {};
+        ALL_LEADS.forEach(lead => {
+            const statusEl = getEl(`design-status-${lead}`);
+            const abnormEl = getEl(`design-abnorm-type-${lead}`);
+            const stEl = getEl(`design-st-${lead}`);
+            
+            const status = statusEl?.value || 'normal';
+            const abnormality = (status === 'abnormal' && abnormEl) ? abnormEl.value : null;
+            const st = stEl ? parseInt(stEl.value) || 0 : 0;
+            
+            // Determine QRS type based on abnormality
+            let qrs = qrsType;
+            if (abnormality === 'wide_qrs') qrs = 'wide';
+            if (abnormality === 'delta_wave') qrs = 'delta';
+            
+            // Determine P wave type
+            let p = pType === 'normal' ? true : (pType === 'absent' ? false : pType);
+            if (abnormality === 'absent_p' || abnormality === 'fib_waves') p = 'fib';
+            if (abnormality === 'flutter_waves') p = 'flutter';
+            
+            // Determine T wave type
+            let t = 'normal';
+            if (abnormality === 't_inversion') t = 'inverted';
+            if (abnormality === 't_peaked') t = 'peaked';
+            if (abnormality === 't_flattened') t = 'flattened';
+            
+            leads[lead] = {
+                status,
+                abnormality,
+                st,
+                qrs,
+                p,
+                pr,
+                t
+            };
+        });
+
+        return { title, clinical, diagnosis, rate, rhythm: pType === 'normal' ? 'sinus' : pType, leads };
+    }
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    document.addEventListener('DOMContentLoaded', () => {
+        renderECGGrid();
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Escape closes modals or cancels marking mode
+            if (e.key === 'Escape') {
+                if (state.markingMode) {
+                    cancelMarkingMode();
+                    return;
+                }
+                closeLeadModal();
+                closeImportModal();
+                closeDesignerModal();
+                closeAnswerModal();
+            }
+            
+            // Don't trigger shortcuts if typing in an input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                return;
+            }
+            
+            // Don't trigger if modal is open
+            const modalOpen = document.querySelector('.modal-overlay.active');
+            
+            // Number keys for marking modes (1=normal, 2=abnormal, 3=uncertain, 0=clear)
+            if (!modalOpen && state.currentECG) {
+                if (e.key === '1') {
+                    setMarkingMode('normal');
+                    return;
+                }
+                if (e.key === '2') {
+                    setMarkingMode('abnormal');
+                    return;
+                }
+                if (e.key === '3') {
+                    setMarkingMode('uncertain');
+                    return;
+                }
+                if (e.key === '0') {
+                    setMarkingMode('clear');
+                    return;
+                }
+            }
+            
+            // R for random ECG
+            if (e.key === 'r' || e.key === 'R') {
+                if (!modalOpen) {
+                    loadRandomECG();
+                }
+            }
+            
+            // N for next (if we add sequential navigation later)
+            // C for check answers
+            if (e.key === 'c' || e.key === 'C') {
+                if (!modalOpen && state.currentECG) {
+                    checkAnswers();
+                }
+            }
+            
+            // A for answer key
+            if (e.key === 'a' || e.key === 'A') {
+                if (!modalOpen && state.currentECG) {
+                    showAnswerKey();
+                }
+            }
+            
+            // X to clear marks
+            if (e.key === 'x' || e.key === 'X') {
+                if (!modalOpen && state.currentECG) {
+                    clearAllMarks();
+                }
+            }
+        });
+        
+        // Click outside modal to close
+        document.querySelectorAll('.modal-overlay').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+    });
+    </script>
+</body>
+</html>
