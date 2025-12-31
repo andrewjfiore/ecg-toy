@@ -2355,7 +2355,14 @@
             t = "normal",
             pr = 160,
             amplitude = 1,
-            u = false
+            u = false,
+            rWave = null,
+            sWave = null,
+            shortqt = false,
+            longqt = false,
+            concave = false,
+            prDepression = false,
+            jpoint = false
         } = config;
 
         let path = "";
@@ -2395,6 +2402,9 @@
         if (p === true) {
             path += `L ${x} ${y} Q ${x + 10 * scale} ${y - 12} ${x + 20 * scale} ${y} `;
             x += 20 * scale;
+        } else if (p === "inverted") {
+            path += `L ${x} ${y} Q ${x + 10 * scale} ${y + 10} ${x + 20 * scale} ${y} `;
+            x += 20 * scale;
         } else if (p === "fib") {
             // Fibrillatory baseline - deterministic pattern
             const fibPattern = [2.5, -1.5, 3, -2.5, 1.5, -3, 2, -1.5];
@@ -2407,6 +2417,9 @@
                 path += `L ${x + 5 * scale} ${y + 8} L ${x + 10 * scale} ${y} `;
                 x += 10 * scale;
             }
+        } else if (p === "retrograde") {
+            path += `L ${x} ${y} Q ${x + 10 * scale} ${y + 10} ${x + 20 * scale} ${y} `;
+            x += 20 * scale;
         } else {
             path += `L ${x + 12 * scale} ${y} `;
             x += 12 * scale;
@@ -2414,16 +2427,35 @@
 
         // PR segment - calibrated: PR interval in ms converted to px
         // PR of 200ms = 25px, PR of 120ms = 15px
-        const prPx = (pr * pxPerMs) * scale * 0.6;  // Scaled for beat width
-        path += `L ${x + prPx} ${y} `;
-        x += prPx;
+        const pDurationMs = (p === true || p === "inverted" || p === "retrograde") ? 80 : 0;
+        const prSegmentMs = pDurationMs > 0 ? Math.max(40, pr - pDurationMs) : 0;
+        const prPx = prSegmentMs * pxPerMs * scale;
+        if (prPx > 0) {
+            if (prDepression) {
+                path += `L ${x + prPx / 2} ${y + 3} L ${x + prPx} ${y} `;
+            } else {
+                path += `L ${x + prPx} ${y} `;
+            }
+            x += prPx;
+        }
 
         // QRS Complex
-        const stOffset = st * 0.8;
+        const stOffset = st * 2 * scale;
         
         if (qrs === "narrow") {
             // Narrow QRS ~100ms = ~12px
             path += `L ${x + 2 * scale} ${y + 5} L ${x + 6 * scale} ${y - 50 * amplitude} L ${x + 10 * scale} ${y + 10} L ${x + 12 * scale} ${y - stOffset} `;
+            x += 12 * scale;
+        } else if (qrs === "inverted") {
+            path += `L ${x + 2 * scale} ${y - 5} L ${x + 6 * scale} ${y + 45 * amplitude} L ${x + 10 * scale} ${y - 8} L ${x + 12 * scale} ${y - stOffset} `;
+            x += 12 * scale;
+        } else if (qrs === "progression") {
+            const rHeight = 50 * (rWave || 0.6) * amplitude;
+            const sDepth = 35 * (sWave || 0.4) * amplitude;
+            path += `L ${x + 2 * scale} ${y + 4} `;
+            path += `L ${x + 6 * scale} ${y - rHeight} `;
+            path += `L ${x + 9 * scale} ${y + sDepth} `;
+            path += `L ${x + 12 * scale} ${y - stOffset} `;
             x += 12 * scale;
         } else if (qrs === "wide") {
             // Wide QRS >120ms = >15px
@@ -2448,8 +2480,20 @@
         }
 
         // ST Segment
-        path += `L ${x + 10 * scale} ${y - stOffset} `;
-        x += 10 * scale;
+        let stSegPx = 10 * scale;
+        if (shortqt) stSegPx = 4 * scale;
+        if (longqt) stSegPx = 16 * scale;
+        if (concave && st > 0) {
+            path += `Q ${x + stSegPx / 2} ${y - stOffset - 5} ${x + stSegPx} ${y - stOffset} `;
+        } else {
+            path += `L ${x + stSegPx} ${y - stOffset} `;
+        }
+        x += stSegPx;
+
+        if (jpoint) {
+            path += `L ${x + 3 * scale} ${y - stOffset - 3} `;
+            x += 3 * scale;
+        }
 
         // T Wave
         let tHeight = 20 * amplitude;
@@ -2457,9 +2501,15 @@
         else if (t === "inverted") tHeight = -18 * amplitude;
         else if (t === "flattened") tHeight = 5;
         else if (t === "hyperacute") tHeight = 35 * amplitude;
-        
-        path += `Q ${x + 12 * scale} ${y - stOffset - tHeight} ${x + 25 * scale} ${y} `;
-        x += 25 * scale;
+        else if (t === "biphasic") {
+            path += `Q ${x + 8 * scale} ${y - stOffset - 14} ${x + 12 * scale} ${y - stOffset} `;
+            path += `Q ${x + 18 * scale} ${y - stOffset + 10} ${x + 22 * scale} ${y} `;
+            x += 22 * scale;
+        } else {
+            const tDur = shortqt ? 18 * scale : longqt ? 30 * scale : 25 * scale;
+            path += `Q ${x + tDur / 2} ${y - stOffset - tHeight} ${x + tDur} ${y} `;
+            x += tDur;
+        }
 
         // U Wave
         if (u) {
@@ -3012,16 +3062,7 @@
         const abnormalitySelector = document.getElementById('abnormality-selector');
         const abnormalityDropdown = document.getElementById('abnormality-type');
         
-        // Reset radio buttons
-        document.querySelectorAll('input[name="lead-status"]').forEach(radio => {
-            radio.checked = false;
-        });
-        
         if (existingMark) {
-            // Check the corresponding radio button
-            const radio = document.querySelector(`input[name="lead-status"][value="${existingMark.status}"]`);
-            if (radio) radio.checked = true;
-            
             // Show abnormality selector if marked abnormal
             if (existingMark.status === 'abnormal') {
                 abnormalitySelector.classList.remove('hidden');
@@ -3109,7 +3150,7 @@
     // ECG Category Mapping for Randomizer
     const ECG_CATEGORIES = {
         sample: ['sample_0', 'sample_1', 'sample_2', 'sample_3', 'sample_4'],
-        normal: ['nsr', 'sinus_arrhythmia', 'early_repol'],
+        normal: ['normal_sinus', 'sinus_arrhythmia', 'early_repol'],
         rate: ['sinus_brady', 'sinus_tachy'],
         rhythm: ['afib', 'aflutter', 'vtach', 'svt', 'sinus_brady', 'sinus_tachy'],
         block: ['first_avb', 'second_avb_1', 'second_avb_2', 'third_avb', 'lbbb', 'rbbb'],
@@ -3259,6 +3300,21 @@
             return;
         }
 
+        const statusStyles = {
+            normal: {
+                card: 'bg-green-50 border-green-200',
+                title: 'text-green-800',
+                text: 'text-green-600',
+                detail: 'text-green-700'
+            },
+            abnormal: {
+                card: 'bg-red-50 border-red-200',
+                title: 'text-red-800',
+                text: 'text-red-600',
+                detail: 'text-red-700'
+            }
+        };
+
         let content = `
             <div class="mb-4 p-4 bg-blue-50 rounded-xl">
                 <h4 class="font-bold text-blue-800">${state.currentECG.title}</h4>
@@ -3273,12 +3329,12 @@
             if (!data) return;
             
             const isNormal = data.status === 'normal';
-            const statusColor = isNormal ? 'green' : 'red';
+            const style = isNormal ? statusStyles.normal : statusStyles.abnormal;
             content += `
-                <div class="p-3 bg-${statusColor}-50 rounded-lg border border-${statusColor}-200">
-                    <p class="font-bold text-${statusColor}-800">${lead === 'rhythm' ? 'Rhythm Strip' : lead}</p>
-                    <p class="text-xs text-${statusColor}-600 capitalize">${data.status}</p>
-                    ${data.abnormality ? `<p class="text-xs text-${statusColor}-700 font-medium mt-1">${formatAbnormality(data.abnormality)}</p>` : ''}
+                <div class="p-3 rounded-lg border ${style.card}">
+                    <p class="font-bold ${style.title}">${lead === 'rhythm' ? 'Rhythm Strip' : lead}</p>
+                    <p class="text-xs ${style.text} capitalize">${data.status}</p>
+                    ${data.abnormality ? `<p class="text-xs ${style.detail} font-medium mt-1">${formatAbnormality(data.abnormality)}</p>` : ''}
                 </div>
             `;
         });
