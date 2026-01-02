@@ -200,8 +200,21 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .correct-answer { background: #dcfce7 !important; border-color: #22c55e !important; }
-        .incorrect-answer { background: #fee2e2 !important; border-color: #ef4444 !important; }
+        .lead-box.correct-answer::after,
+        .lead-box.incorrect-answer::after {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: rgba(100, 116, 139, 0.35);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .lead-box.correct-answer::after { content: "✓"; }
+        .lead-box.incorrect-answer::after { content: "✗"; }
         
         /* Pulse animation for random button */
         @keyframes pulse-btn {
@@ -728,6 +741,24 @@
                         <option value="bradycardia">Bradycardia</option>
                         <option value="tachycardia">Tachycardia</option>
                     </optgroup>
+                    <optgroup label="Atrial Rhythm">
+                        <option value="afib">Atrial fibrillation</option>
+                        <option value="aflutter">Atrial flutter</option>
+                        <option value="mat">Multifocal atrial tachycardia</option>
+                        <option value="svt_avnrt">SVT / AVNRT</option>
+                    </optgroup>
+                    <optgroup label="AV Block">
+                        <option value="first_degree_avb">First-degree AV block</option>
+                        <option value="mobitz_1">Mobitz I (Wenckebach)</option>
+                        <option value="mobitz_2">Mobitz II</option>
+                        <option value="third_degree_avb">Third-degree (complete) block</option>
+                    </optgroup>
+                    <optgroup label="Ventricular Rhythm">
+                        <option value="pvc">PVCs</option>
+                        <option value="vtach">Ventricular tachycardia</option>
+                        <option value="torsades">Torsades de pointes</option>
+                        <option value="vfib">Ventricular fibrillation</option>
+                    </optgroup>
                     <optgroup label="P Wave">
                         <option value="absent_p">Absent P waves</option>
                         <option value="p_mitrale">P mitrale (LAE)</option>
@@ -756,6 +787,7 @@
                         <option value="st_depression">ST depression</option>
                         <option value="st_coved">Coved ST (STEMI pattern)</option>
                         <option value="st_concave">Concave ST (pericarditis)</option>
+                        <option value="prinzmetal">Prinzmetal (vasospasm)</option>
                     </optgroup>
                     <optgroup label="T Wave">
                         <option value="t_inversion">T wave inversion</option>
@@ -771,10 +803,45 @@
                     <optgroup label="U Wave">
                         <option value="prominent_u">Prominent U waves</option>
                     </optgroup>
+                    <optgroup label="Ischemia & Infarct Patterns">
+                        <option value="anterior_mi">Anterior MI pattern</option>
+                        <option value="inferior_mi">Inferior MI pattern</option>
+                        <option value="lateral_mi">Lateral MI pattern</option>
+                        <option value="posterior_mi">Posterior MI pattern</option>
+                        <option value="q_wave">Q-wave formation</option>
+                    </optgroup>
+                    <optgroup label="Hypertrophy & Chamber Enlargement">
+                        <option value="lvh">Left ventricular hypertrophy</option>
+                        <option value="rvh">Right ventricular hypertrophy</option>
+                        <option value="lae">Left atrial enlargement</option>
+                        <option value="rae">Right atrial enlargement</option>
+                    </optgroup>
+                    <optgroup label="Conduction & Repolarization">
+                        <option value="lbbb">Left bundle branch block</option>
+                        <option value="rbbb">Right bundle branch block</option>
+                        <option value="brugada">Brugada pattern</option>
+                        <option value="wpw">Wolff-Parkinson-White</option>
+                        <option value="pericarditis">Pericarditis</option>
+                    </optgroup>
+                    <optgroup label="Pulmonary / PE">
+                        <option value="s1q3t3">S1Q3T3 (PE)</option>
+                        <option value="cor_pulmonale">Cor pulmonale / chronic lung dz</option>
+                    </optgroup>
+                    <optgroup label="Electrolyte / Drug / Toxicity">
+                        <option value="hyperkalemia">Hyperkalemia</option>
+                        <option value="hypokalemia">Hypokalemia</option>
+                        <option value="hypercalcemia">Hypercalcemia</option>
+                        <option value="hypocalcemia">Hypocalcemia</option>
+                        <option value="digoxin_effect">Digoxin effect</option>
+                        <option value="tca_toxicity">TCA toxicity</option>
+                        <option value="lithium_toxicity">Lithium-related</option>
+                        <option value="magnesium_disorder">Magnesium disorder</option>
+                    </optgroup>
                     <optgroup label="Other">
                         <option value="av_dissociation">AV dissociation</option>
                         <option value="escape_rhythm">Escape rhythm</option>
                         <option value="osborn_wave">Osborn (J) wave</option>
+                        <option value="electrical_alternans">Electrical alternans</option>
                     </optgroup>
                 </select>
                 <button onclick="confirmAbnormality()" class="btn btn-primary w-full">Confirm Abnormality</button>
@@ -2958,6 +3025,9 @@
     function formatAbnormality(code) {
         const labels = {
             bradycardia: "Brady", tachycardia: "Tachy",
+            afib: "AFib", aflutter: "AFlutter", mat: "MAT", svt_avnrt: "SVT/AVNRT",
+            first_degree_avb: "1° AVB", mobitz_1: "Mobitz I", mobitz_2: "Mobitz II", third_degree_avb: "3° AVB",
+            pvc: "PVCs", vtach: "VT", torsades: "Torsades", vfib: "VFib",
             absent_p: "No P", p_mitrale: "P mitrale", p_pulmonale: "P pulmonale",
             retrograde_p: "Retro P", flutter_waves: "Flutter", fib_waves: "AFib",
             short_pr: "Short PR", long_pr: "Long PR", variable_pr: "Var PR",
@@ -2965,11 +3035,21 @@
             delta_wave: "Delta", rsr_prime: "RSR'", deep_s: "Deep S", tall_r: "Tall R",
             poor_r_prog: "Poor R prog",
             st_elevation: "ST↑", st_depression: "ST↓", st_coved: "Coved ST", st_concave: "Concave ST",
+            prinzmetal: "Prinzmetal",
             t_inversion: "T inv", t_peaked: "Peaked T", t_flattened: "Flat T",
             t_biphasic: "Biphasic T", t_hyperacute: "Hyperacute T",
             long_qt: "Long QT", short_qt: "Short QT",
             prominent_u: "Prominent U",
-            av_dissociation: "AV dissoc", escape_rhythm: "Escape", osborn_wave: "Osborn J"
+            anterior_mi: "Anterior MI", inferior_mi: "Inferior MI", lateral_mi: "Lateral MI", posterior_mi: "Posterior MI",
+            q_wave: "Q-wave",
+            lvh: "LVH", rvh: "RVH", lae: "LAE", rae: "RAE",
+            lbbb: "LBBB", rbbb: "RBBB", brugada: "Brugada", wpw: "WPW",
+            pericarditis: "Pericarditis",
+            s1q3t3: "S1Q3T3", cor_pulmonale: "Cor pulmonale",
+            hyperkalemia: "HyperK", hypokalemia: "HypoK", hypercalcemia: "HyperCa", hypocalcemia: "HypoCa",
+            digoxin_effect: "Digoxin", tca_toxicity: "TCA tox", lithium_toxicity: "Lithium", magnesium_disorder: "Mg disorder",
+            av_dissociation: "AV dissoc", escape_rhythm: "Escape", osborn_wave: "Osborn J",
+            electrical_alternans: "Electrical alternans"
         };
         return labels[code] || code;
     }
@@ -3315,16 +3395,19 @@
             }
         };
 
+        const answerLeadOrder = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"];
+        const rhythmData = state.currentECG.leads?.rhythm;
+
         let content = `
             <div class="mb-4 p-4 bg-blue-50 rounded-xl">
                 <h4 class="font-bold text-blue-800">${state.currentECG.title}</h4>
                 <p class="text-sm text-blue-600 mt-1"><strong>Diagnosis:</strong> ${state.currentECG.diagnosis || 'Not specified'}</p>
                 <p class="text-sm text-blue-600"><strong>Rate:</strong> ${state.currentECG.rate || 75} bpm</p>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-4 grid-rows-3 grid-flow-col gap-3">
         `;
 
-        ALL_LEADS.forEach(lead => {
+        answerLeadOrder.forEach(lead => {
             const data = state.currentECG.leads?.[lead];
             if (!data) return;
             
@@ -3332,7 +3415,7 @@
             const style = isNormal ? statusStyles.normal : statusStyles.abnormal;
             content += `
                 <div class="p-3 rounded-lg border ${style.card}">
-                    <p class="font-bold ${style.title}">${lead === 'rhythm' ? 'Rhythm Strip' : lead}</p>
+                    <p class="font-bold ${style.title}">${lead}</p>
                     <p class="text-xs ${style.text} capitalize">${data.status}</p>
                     ${data.abnormality ? `<p class="text-xs ${style.detail} font-medium mt-1">${formatAbnormality(data.abnormality)}</p>` : ''}
                 </div>
@@ -3340,6 +3423,18 @@
         });
 
         content += '</div>';
+
+        if (rhythmData) {
+            const isNormal = rhythmData.status === 'normal';
+            const style = isNormal ? statusStyles.normal : statusStyles.abnormal;
+            content += `
+                <div class="mt-4 p-3 rounded-lg border ${style.card}">
+                    <p class="font-bold ${style.title}">Rhythm Strip</p>
+                    <p class="text-xs ${style.text} capitalize">${rhythmData.status}</p>
+                    ${rhythmData.abnormality ? `<p class="text-xs ${style.detail} font-medium mt-1">${formatAbnormality(rhythmData.abnormality)}</p>` : ''}
+                </div>
+            `;
+        }
         
         const answerContent = getEl('answer-key-content');
         const answerModal = getEl('answer-modal');
@@ -3474,14 +3569,55 @@
                         <option value="">Select abnormality...</option>
                         <option value="st_elevation">ST Elevation</option>
                         <option value="st_depression">ST Depression</option>
+                        <option value="st_coved">Coved ST</option>
+                        <option value="st_concave">Concave ST</option>
                         <option value="t_inversion">T Inversion</option>
                         <option value="t_peaked">Peaked T</option>
+                        <option value="t_flattened">Flattened T</option>
+                        <option value="t_biphasic">Biphasic T</option>
+                        <option value="t_hyperacute">Hyperacute T</option>
                         <option value="pathologic_q">Pathologic Q</option>
+                        <option value="q_wave">Q-wave Formation</option>
                         <option value="wide_qrs">Wide QRS</option>
                         <option value="delta_wave">Delta Wave</option>
+                        <option value="rsr_prime">RSR' Pattern</option>
+                        <option value="deep_s">Deep S</option>
+                        <option value="tall_r">Tall R</option>
                         <option value="absent_p">Absent P</option>
                         <option value="flutter_waves">Flutter Waves</option>
                         <option value="fib_waves">Fib Waves</option>
+                        <option value="afib">Atrial Fibrillation</option>
+                        <option value="aflutter">Atrial Flutter</option>
+                        <option value="mat">MAT</option>
+                        <option value="svt_avnrt">SVT / AVNRT</option>
+                        <option value="first_degree_avb">1st Degree AVB</option>
+                        <option value="mobitz_1">Mobitz I</option>
+                        <option value="mobitz_2">Mobitz II</option>
+                        <option value="third_degree_avb">3rd Degree AVB</option>
+                        <option value="pvc">PVCs</option>
+                        <option value="vtach">Ventricular Tachycardia</option>
+                        <option value="torsades">Torsades</option>
+                        <option value="vfib">Ventricular Fibrillation</option>
+                        <option value="lvh">LVH</option>
+                        <option value="rvh">RVH</option>
+                        <option value="lae">LAE</option>
+                        <option value="rae">RAE</option>
+                        <option value="lbbb">LBBB</option>
+                        <option value="rbbb">RBBB</option>
+                        <option value="brugada">Brugada</option>
+                        <option value="wpw">WPW</option>
+                        <option value="pericarditis">Pericarditis</option>
+                        <option value="s1q3t3">S1Q3T3</option>
+                        <option value="cor_pulmonale">Cor Pulmonale</option>
+                        <option value="hyperkalemia">Hyperkalemia</option>
+                        <option value="hypokalemia">Hypokalemia</option>
+                        <option value="hypercalcemia">Hypercalcemia</option>
+                        <option value="hypocalcemia">Hypocalcemia</option>
+                        <option value="digoxin_effect">Digoxin Effect</option>
+                        <option value="tca_toxicity">TCA Toxicity</option>
+                        <option value="lithium_toxicity">Lithium-related</option>
+                        <option value="magnesium_disorder">Magnesium Disorder</option>
+                        <option value="electrical_alternans">Electrical Alternans</option>
                     </select>
                     <div class="mt-2">
                         <label class="text-xs text-slate-500">ST Offset (mm)</label>
