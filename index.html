@@ -200,8 +200,21 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .correct-answer { background: #dcfce7 !important; border-color: #22c55e !important; }
-        .incorrect-answer { background: #fee2e2 !important; border-color: #ef4444 !important; }
+        .lead-box.correct-answer::after,
+        .lead-box.incorrect-answer::after {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: rgba(100, 116, 139, 0.35);
+            pointer-events: none;
+            z-index: 5;
+        }
+        .lead-box.correct-answer::after { content: "✓"; }
+        .lead-box.incorrect-answer::after { content: "✗"; }
         
         /* Pulse animation for random button */
         @keyframes pulse-btn {
@@ -260,6 +273,85 @@
         .mark-btn-uncertain:hover, .mark-btn-uncertain.active { background: #f59e0b; color: white; border-color: #d97706; }
         .mark-btn-clear { background: #f1f5f9; color: #475569; }
         .mark-btn-clear:hover, .mark-btn-clear.active { background: #94a3b8; color: white; }
+
+        .tab-btn {
+            padding: 0.45rem 0.9rem;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border: 2px solid transparent;
+            background: #f1f5f9;
+            color: #475569;
+            transition: all 0.15s;
+        }
+        .tab-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #1d4ed8;
+            box-shadow: 0 6px 12px rgba(37, 99, 235, 0.2);
+        }
+        .torso-board {
+            position: relative;
+            width: 100%;
+            max-width: 540px;
+            aspect-ratio: 3 / 4;
+            margin: 0 auto;
+            background: radial-gradient(circle at 50% 20%, #fef2f2, #f8fafc 55%, #f1f5f9 100%);
+            border-radius: 24px;
+            border: 2px solid #e2e8f0;
+            overflow: hidden;
+        }
+        .torso-zone {
+            position: absolute;
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            border: 2px dashed rgba(148, 163, 184, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #64748b;
+            background: rgba(248, 250, 252, 0.7);
+            transition: all 0.2s;
+        }
+        .torso-zone.correct {
+            border-style: solid;
+            border-color: #22c55e;
+            color: #166534;
+            background: rgba(220, 252, 231, 0.8);
+        }
+        .torso-token {
+            position: absolute;
+            width: 50px;
+            height: 34px;
+            border-radius: 10px;
+            background: white;
+            border: 2px solid #cbd5f5;
+            box-shadow: 0 8px 14px rgba(15, 23, 42, 0.12);
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            user-select: none;
+        }
+        .torso-token.dragging {
+            cursor: grabbing;
+            transform: scale(1.04);
+            box-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
+        }
+        .torso-score {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            border-radius: 12px;
+            padding: 0.6rem 0.8rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body class="text-slate-800 min-h-screen">
@@ -301,6 +393,7 @@
                         <option value="afib">Atrial Fibrillation</option>
                         <option value="aflutter">Atrial Flutter</option>
                         <option value="vtach">Ventricular Tachycardia</option>
+                        <option value="torsades">Torsades de Pointes</option>
                         <option value="svt">SVT</option>
                     </optgroup>
                     <optgroup label="🚫 Conduction Abnormalities">
@@ -317,6 +410,9 @@
                         <option value="lateral_stemi">Lateral STEMI</option>
                         <option value="posterior_mi">Posterior MI</option>
                         <option value="nstemi">NSTEMI</option>
+                        <option value="stable_angina">Stable Angina</option>
+                        <option value="unstable_angina">Unstable Angina</option>
+                        <option value="vasospastic_angina">Vasospastic (Prinzmetal) Angina</option>
                     </optgroup>
                     <optgroup label="⚡ Electrolyte/Metabolic">
                         <option value="hyperkalemia">Hyperkalemia (Peaked T)</option>
@@ -370,8 +466,14 @@
             </div>
         </header>
 
-        <!-- Main Content -->
-        <div class="grid lg:grid-cols-4 gap-6">
+        <div class="card p-3 flex flex-wrap gap-2 mb-6">
+            <button class="tab-btn active" data-tab="ecg-tab" onclick="switchTab('ecg-tab')">ECG Trainer</button>
+            <button class="tab-btn" data-tab="torso-tab" onclick="switchTab('torso-tab')">Torso Lead Game</button>
+        </div>
+
+        <div id="ecg-tab">
+            <!-- Main Content -->
+            <div class="grid lg:grid-cols-4 gap-6">
             <!-- ECG Display -->
             <div class="lg:col-span-3 space-y-4">
                 <!-- Patient Info Bar -->
@@ -687,6 +789,73 @@
                     </div>
                 </div>
             </div>
+            </div>
+        </div>
+
+        <div id="torso-tab" class="hidden">
+            <div class="grid lg:grid-cols-5 gap-6">
+                <div class="lg:col-span-3 space-y-4">
+                    <div class="card p-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 class="font-bold text-lg">🫀 Lead Placement Challenge</h2>
+                                <p class="text-sm text-slate-500">Drag each lead to the correct anatomical zone. Earn streaks for perfect rounds.</p>
+                            </div>
+                            <div class="torso-score">
+                                Score: <span id="torso-score">0</span> • Streak: <span id="torso-streak">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card p-4 flex flex-col lg:flex-row gap-6">
+                        <div class="torso-board" id="torso-board">
+                            <svg viewBox="0 0 300 400" class="absolute inset-0 w-full h-full opacity-30">
+                                <path d="M150 18c40 0 78 20 90 50 8 22 10 46 6 70l-10 66c-4 28-2 56 6 82l12 40c3 10-3 20-14 20H60c-11 0-17-10-14-20l12-40c8-26 10-54 6-82l-10-66c-4-24-2-48 6-70 12-30 50-50 90-50z" fill="#fecaca"/>
+                                <circle cx="150" cy="150" r="65" fill="#fbcfe8"/>
+                                <path d="M140 145c12-18 32-22 48-14-6 18-22 32-48 14z" fill="#f472b6"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1 space-y-4">
+                            <div class="card p-3 bg-slate-50 border border-slate-200">
+                                <h3 class="text-sm font-semibold text-slate-700 mb-2">Your Lead Pack</h3>
+                                <div id="torso-token-tray" class="relative h-64"></div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button class="btn btn-primary" onclick="checkTorsoPlacements()">Check Placement</button>
+                                <button class="btn btn-outline" onclick="resetTorsoRound()">Reset Round</button>
+                            </div>
+                            <div class="text-xs text-slate-500">
+                                Tip: Use the clavicle and sternum landmarks to guide V1-V6 placement. Limb leads sit on the shoulders and lower abdomen.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-2">🎯 Current Objective</h3>
+                        <p class="text-sm text-slate-600">Place all 10 leads correctly. A perfect round boosts your streak.</p>
+                        <div id="torso-feedback" class="mt-3 text-sm text-slate-500">Drag the labels onto the torso zones.</div>
+                    </div>
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-2">🏅 Rewards</h3>
+                        <ul class="text-sm text-slate-600 space-y-2">
+                            <li>✅ +10 points per correct lead.</li>
+                            <li>🔥 +1 streak for a perfect round.</li>
+                            <li>💡 Use reset to try again without losing streak.</li>
+                        </ul>
+                    </div>
+                    <div class="card p-4">
+                        <h3 class="font-bold mb-2">Lead Placement Reference</h3>
+                        <ul class="text-xs text-slate-500 space-y-1">
+                            <li><strong>V1:</strong> 4th ICS, right sternal border</li>
+                            <li><strong>V2:</strong> 4th ICS, left sternal border</li>
+                            <li><strong>V4:</strong> 5th ICS, midclavicular line</li>
+                            <li><strong>V3:</strong> midway between V2 and V4</li>
+                            <li><strong>V5:</strong> anterior axillary line</li>
+                            <li><strong>V6:</strong> midaxillary line</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -728,6 +897,24 @@
                         <option value="bradycardia">Bradycardia</option>
                         <option value="tachycardia">Tachycardia</option>
                     </optgroup>
+                    <optgroup label="Atrial Rhythm">
+                        <option value="afib">Atrial fibrillation</option>
+                        <option value="aflutter">Atrial flutter</option>
+                        <option value="mat">Multifocal atrial tachycardia</option>
+                        <option value="svt_avnrt">SVT / AVNRT</option>
+                    </optgroup>
+                    <optgroup label="AV Block">
+                        <option value="first_degree_avb">First-degree AV block</option>
+                        <option value="mobitz_1">Mobitz I (Wenckebach)</option>
+                        <option value="mobitz_2">Mobitz II</option>
+                        <option value="third_degree_avb">Third-degree (complete) block</option>
+                    </optgroup>
+                    <optgroup label="Ventricular Rhythm">
+                        <option value="pvc">PVCs</option>
+                        <option value="vtach">Ventricular tachycardia</option>
+                        <option value="torsades">Torsades de pointes</option>
+                        <option value="vfib">Ventricular fibrillation</option>
+                    </optgroup>
                     <optgroup label="P Wave">
                         <option value="absent_p">Absent P waves</option>
                         <option value="p_mitrale">P mitrale (LAE)</option>
@@ -756,6 +943,7 @@
                         <option value="st_depression">ST depression</option>
                         <option value="st_coved">Coved ST (STEMI pattern)</option>
                         <option value="st_concave">Concave ST (pericarditis)</option>
+                        <option value="prinzmetal">Prinzmetal (vasospasm)</option>
                     </optgroup>
                     <optgroup label="T Wave">
                         <option value="t_inversion">T wave inversion</option>
@@ -771,10 +959,45 @@
                     <optgroup label="U Wave">
                         <option value="prominent_u">Prominent U waves</option>
                     </optgroup>
+                    <optgroup label="Ischemia & Infarct Patterns">
+                        <option value="anterior_mi">Anterior MI pattern</option>
+                        <option value="inferior_mi">Inferior MI pattern</option>
+                        <option value="lateral_mi">Lateral MI pattern</option>
+                        <option value="posterior_mi">Posterior MI pattern</option>
+                        <option value="q_wave">Q-wave formation</option>
+                    </optgroup>
+                    <optgroup label="Hypertrophy & Chamber Enlargement">
+                        <option value="lvh">Left ventricular hypertrophy</option>
+                        <option value="rvh">Right ventricular hypertrophy</option>
+                        <option value="lae">Left atrial enlargement</option>
+                        <option value="rae">Right atrial enlargement</option>
+                    </optgroup>
+                    <optgroup label="Conduction & Repolarization">
+                        <option value="lbbb">Left bundle branch block</option>
+                        <option value="rbbb">Right bundle branch block</option>
+                        <option value="brugada">Brugada pattern</option>
+                        <option value="wpw">Wolff-Parkinson-White</option>
+                        <option value="pericarditis">Pericarditis</option>
+                    </optgroup>
+                    <optgroup label="Pulmonary / PE">
+                        <option value="s1q3t3">S1Q3T3 (PE)</option>
+                        <option value="cor_pulmonale">Cor pulmonale / chronic lung dz</option>
+                    </optgroup>
+                    <optgroup label="Electrolyte / Drug / Toxicity">
+                        <option value="hyperkalemia">Hyperkalemia</option>
+                        <option value="hypokalemia">Hypokalemia</option>
+                        <option value="hypercalcemia">Hypercalcemia</option>
+                        <option value="hypocalcemia">Hypocalcemia</option>
+                        <option value="digoxin_effect">Digoxin effect</option>
+                        <option value="tca_toxicity">TCA toxicity</option>
+                        <option value="lithium_toxicity">Lithium-related</option>
+                        <option value="magnesium_disorder">Magnesium disorder</option>
+                    </optgroup>
                     <optgroup label="Other">
                         <option value="av_dissociation">AV dissociation</option>
                         <option value="escape_rhythm">Escape rhythm</option>
                         <option value="osborn_wave">Osborn (J) wave</option>
+                        <option value="electrical_alternans">Electrical alternans</option>
                     </optgroup>
                 </select>
                 <button onclick="confirmAbnormality()" class="btn btn-primary w-full">Confirm Abnormality</button>
@@ -956,8 +1179,27 @@
         // Quick marking mode
         markingMode: null,  // 'normal', 'abnormal', 'uncertain', 'clear', or null
         isDragging: false,
-        dragSelectedLeads: new Set()
+        dragSelectedLeads: new Set(),
+        torsoGame: {
+            score: 0,
+            streak: 0,
+            placements: {},
+            draggingToken: null
+        }
     };
+
+    const torsoLeadZones = [
+        { id: "RA", label: "RA", left: 20, top: 18 },
+        { id: "LA", label: "LA", left: 80, top: 18 },
+        { id: "RL", label: "RL", left: 30, top: 82 },
+        { id: "LL", label: "LL", left: 70, top: 82 },
+        { id: "V1", label: "V1", left: 42, top: 46 },
+        { id: "V2", label: "V2", left: 58, top: 46 },
+        { id: "V3", label: "V3", left: 52, top: 52 },
+        { id: "V4", label: "V4", left: 60, top: 58 },
+        { id: "V5", label: "V5", left: 70, top: 58 },
+        { id: "V6", label: "V6", left: 80, top: 58 }
+    ];
 
     // Coronary artery territories
     const arteryTerritories = {
@@ -1195,6 +1437,14 @@
             rhythm: "vtach",
             leads: createVTachLeads()
         },
+        torsades: {
+            title: "Torsades de Pointes",
+            clinical: "Young patient with syncope after QT-prolonging medication.",
+            diagnosis: "Polymorphic VT (Torsades de Pointes)",
+            rate: 220,
+            rhythm: "torsades",
+            leads: createTorsadesLeads()
+        },
         
         // Conduction Abnormalities
         first_avb: {
@@ -1354,6 +1604,30 @@
             rate: 88,
             rhythm: "sinus",
             leads: createNSTEMILeads()
+        },
+        stable_angina: {
+            title: "Stable Angina",
+            clinical: "Exertional chest pressure relieved by rest.",
+            diagnosis: "Stable Angina (demand ischemia)",
+            rate: 78,
+            rhythm: "sinus",
+            leads: createStableAnginaLeads()
+        },
+        unstable_angina: {
+            title: "Unstable Angina",
+            clinical: "Chest pain at rest with dynamic ST changes.",
+            diagnosis: "Unstable Angina",
+            rate: 90,
+            rhythm: "sinus",
+            leads: createUnstableAnginaLeads()
+        },
+        vasospastic_angina: {
+            title: "Vasospastic (Prinzmetal) Angina",
+            clinical: "Nocturnal chest pain with transient ST elevation.",
+            diagnosis: "Prinzmetal Angina",
+            rate: 65,
+            rhythm: "sinus",
+            leads: createVasospasticAnginaLeads()
         },
         hypercalcemia: {
             title: "Hypercalcemia",
@@ -1537,6 +1811,59 @@
                 qrs: "narrow", 
                 p: true, 
                 t: isLateral ? "inverted" : "normal"
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createStableAnginaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isLateral = ["I", "aVL", "V5", "V6"].includes(lead);
+            leads[lead] = { 
+                status: isLateral ? "abnormal" : "normal",
+                abnormality: isLateral ? "st_depression" : null,
+                st: isLateral ? -3 : 0,
+                qrs: "narrow",
+                p: true,
+                t: "normal"
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createUnstableAnginaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isLateral = ["I", "aVL", "V5", "V6"].includes(lead);
+            const isInferior = ["II", "III", "aVF"].includes(lead);
+            const isAbnormal = isLateral || isInferior;
+            leads[lead] = { 
+                status: isAbnormal ? "abnormal" : "normal",
+                abnormality: isAbnormal ? "st_depression" : null,
+                st: isAbnormal ? -5 : 0,
+                qrs: "narrow",
+                p: true,
+                t: isInferior ? "inverted" : "normal"
+            };
+        });
+        leads.rhythm = { status: "normal" };
+        return applyAVRInversion(leads);
+    }
+
+    function createVasospasticAnginaLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            const isInferior = ["II", "III", "aVF"].includes(lead);
+            leads[lead] = { 
+                status: isInferior ? "abnormal" : "normal",
+                abnormality: isInferior ? "st_elevation" : null,
+                st: isInferior ? 8 : 0,
+                qrs: "narrow",
+                p: true,
+                t: isInferior ? "hyperacute" : "normal"
             };
         });
         leads.rhythm = { status: "normal" };
@@ -1730,6 +2057,23 @@
         });
         // Key finding: AV dissociation (P waves march through independently)
         leads.rhythm = { status: "abnormal", abnormality: "av_dissociation" };
+        return leads;
+    }
+
+    function createTorsadesLeads() {
+        const leads = {};
+        LEADS.forEach(lead => {
+            leads[lead] = { 
+                status: "abnormal",
+                abnormality: "torsades",
+                st: 0,
+                qrs: "wide-vt",
+                p: false,
+                t: "inverted",
+                amplitude: 1.1
+            };
+        });
+        leads.rhythm = { status: "abnormal", abnormality: "torsades" };
         return leads;
     }
 
@@ -2050,247 +2394,32 @@
     // ECG DRAWING ENGINE
     // ============================================
     
-    function drawECGPath(config, width = 250, height = 200) {
-        // Generate cache key from config
-        const cacheKey = JSON.stringify({...config, width, height});
+    function drawECGPath(config, width = 250, height = 200, rate = 75, beats = 2) {
+        const cacheKey = JSON.stringify({ config, width, height, rate, beats });
         if (pathCache.has(cacheKey)) {
             return pathCache.get(cacheKey);
         }
-        
-        const {
-            st = 0,
-            qrs = "narrow",
-            p = true,
-            t = "normal",
-            pr = 160,
-            amplitude = 1,
-            u = false,
-            jpoint = false,
-            qrsPolarity = 1,  // 1 = upright, -1 = inverted (for aVR)
-            rWave = null,     // R-wave amplitude ratio (for precordial progression)
-            sWave = null,     // S-wave amplitude ratio
-            shortqt = false,  // Shortened QT (hypercalcemia)
-            longqt = false,   // Prolonged QT (hypocalcemia, long QT syndrome)
-            concave = false,  // Concave ST elevation (pericarditis)
-            prDepression = false  // PR depression (pericarditis)
-        } = config;
 
         const y = height / 2;
-        // CALIBRATION: Standard ECG paper
-        // 1 small box = 1mm = 0.04s (40ms) = 5px
-        // 1 large box = 5mm = 0.2s (200ms) = 25px
-        const PX_PER_MM = 5;
-        const MS_PER_MM = 40;
-        const PX_PER_MS = PX_PER_MM / MS_PER_MM;  // 0.125 px/ms
         const scaleFactor = width / 250;
-        
-        let path = "";
-        let x = 10;
+        const PX_PER_SEC = 125 * scaleFactor;
+        const rrInterval = (60 / Math.max(30, rate)) * PX_PER_SEC;
+        const availableWidth = width - 20;
+        const intervalPx = Math.min(rrInterval, availableWidth / beats);
+        const beatWidth = Math.max(90 * scaleFactor, Math.min(140 * scaleFactor, intervalPx - 10));
 
-        // Baseline start
-        path += `M ${x} ${y} `;
+        let path = `M 10 ${y} `;
+        let currentX = 10;
 
-        // P Wave (~80ms duration)
-        if (p === true) {
-            const pDuration = 80 * PX_PER_MS * scaleFactor;
-            path += `Q ${x + pDuration/2} ${y - 15 * amplitude} ${x + pDuration} ${y} `;
-            x += pDuration;
-        } else if (p === "inverted") {
-            // Inverted P wave (for aVR)
-            const pDuration = 80 * PX_PER_MS * scaleFactor;
-            path += `Q ${x + pDuration/2} ${y + 12 * amplitude} ${x + pDuration} ${y} `;
-            x += pDuration;
-        } else if (p === "fib") {
-            // Fibrillatory baseline - use deterministic pattern for consistent rendering
-            const fibPattern = [3, -2, 4, -3, 2, -4, 3, -2]; // Pre-defined wiggle pattern
-            for (let i = 0; i < 8; i++) {
-                path += `L ${x + 4} ${y + fibPattern[i]} `;
-                x += 4;
-            }
-        } else if (p === "flutter") {
-            // Sawtooth flutter waves
-            for (let i = 0; i < 3; i++) {
-                path += `L ${x + 8} ${y + 12} L ${x + 16} ${y} `;
-                x += 16;
-            }
-        } else if (p === "retrograde") {
-            const pDuration = 80 * PX_PER_MS * scaleFactor;
-            path += `Q ${x + pDuration/2} ${y + 12 * amplitude} ${x + pDuration} ${y} `;
-            x += pDuration;
-        } else {
-            // No P wave
-            path += `L ${x + 15 * scaleFactor} ${y} `;
-            x += 15 * scaleFactor;
+        for (let i = 0; i < beats; i++) {
+            path += drawSingleBeat(config, currentX, y, beatWidth, rate);
+            currentX += intervalPx;
+            path += `L ${Math.min(currentX, width - 10)} ${y} `;
         }
 
-        // PR segment: Calibrated - PR of 200ms = 25px (one large box)
-        // PR segment = total PR interval - P wave duration (~80ms)
-        const prSegmentMs = Math.max(40, pr - 80);
-        const prSegmentPx = prSegmentMs * PX_PER_MS * scaleFactor;
-        
-        // PR depression (pericarditis finding)
-        if (prDepression) {
-            path += `L ${x + prSegmentPx/2} ${y + 4} L ${x + prSegmentPx} ${y} `;
-        } else {
-            path += `L ${x + prSegmentPx} ${y} `;
-        }
-        x += prSegmentPx;
-
-        // QRS Complex - ST offset visual scaling
-        // ST values in library are in display units (not actual mm)
-        // Multiply by 0.5 to get reasonable visual elevation
-        // For STEMI: st=20 renders as ~10mm elevation (2 large boxes)
-        const stOffset = st * PX_PER_MM * 0.5 * scaleFactor;
-        
-        if (qrs === "narrow") {
-            // Normal narrow QRS: 80-100ms = 10-12.5px
-            const qrsDur = 12 * scaleFactor;
-            path += `L ${x + 2} ${y + 5} L ${x + qrsDur/2} ${y - 55 * amplitude} L ${x + qrsDur - 2} ${y + 12} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else if (qrs === "inverted") {
-            // Fully inverted QRS (for aVR) - negative P, negative QRS, negative T
-            const qrsDur = 12 * scaleFactor;
-            // Small r wave down, deep S wave up (inverted appearance)
-            path += `L ${x + 2} ${y - 5} L ${x + qrsDur/2} ${y + 50 * amplitude} L ${x + qrsDur - 2} ${y - 8} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else if (qrs === "progression") {
-            // R-wave progression for precordial leads (V1-V6)
-            // Uses rWave and sWave ratios from config
-            const qrsDur = 14 * scaleFactor;
-            const rHeight = 55 * (rWave || 0.5) * amplitude;
-            const sDepth = 40 * (sWave || 0.5) * amplitude;
-            // Small q, R wave (variable height), S wave (variable depth)
-            path += `L ${x + 2} ${y + 3} `;  // small q
-            path += `L ${x + qrsDur * 0.4} ${y - rHeight} `;  // R wave
-            path += `L ${x + qrsDur * 0.7} ${y + sDepth} `;  // S wave
-            path += `L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else if (qrs === "wide") {
-            // Wide QRS: >120ms = >15px
-            const qrsDur = 24 * scaleFactor;
-            path += `L ${x + 4} ${y + 10} L ${x + qrsDur/2} ${y - 50 * amplitude} L ${x + qrsDur - 4} ${y + 15} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else if (qrs === "wide-vt") {
-            // Monomorphic VTach: Wide but DISTINCT QRS complexes
-            const qrsDur = 32 * scaleFactor;
-            path += `L ${x + 3} ${y + 8} `;
-            path += `L ${x + 10 * scaleFactor} ${y - 55 * amplitude} `;
-            path += `L ${x + 18 * scaleFactor} ${y - 42 * amplitude} `;
-            path += `L ${x + 26 * scaleFactor} ${y + 25} `;
-            path += `L ${x + qrsDur} ${y + 15} `;
-            x += qrsDur;
-            // Discordant ST-T
-            path += `L ${x + 8 * scaleFactor} ${y + 10} `;
-            path += `Q ${x + 20 * scaleFactor} ${y + 32} ${x + 35 * scaleFactor} ${y} `;
-            x += 35 * scaleFactor;
-            path += `L ${width - 10} ${y}`;
-            return path;
-        } else if (qrs === "sine-wave") {
-            // Sine wave for severe hyperkalemia / V-flutter
-            const cycleW = 70 * scaleFactor;
-            path += `Q ${x + cycleW/2} ${y - 55 * amplitude} ${x + cycleW} ${y} `;
-            path += `Q ${x + cycleW * 1.5} ${y + 50 * amplitude} ${x + cycleW * 2} ${y} `;
-            x += cycleW * 2;
-            path += `L ${width - 10} ${y}`;
-            return path;
-        } else if (qrs === "tall-r-post") {
-            // Tall R wave for posterior MI
-            const qrsDur = 14 * scaleFactor;
-            path += `L ${x + 2} ${y + 3} L ${x + qrsDur/2} ${y - 70 * amplitude} L ${x + qrsDur - 2} ${y + 8} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else if (qrs === "wide-lbbb") {
-            const qrsDur = 42 * scaleFactor;
-            path += `L ${x + 5} ${y + 8} L ${x + 15 * scaleFactor} ${y - 45 * amplitude} L ${x + 22 * scaleFactor} ${y - 35 * amplitude} L ${x + 30 * scaleFactor} ${y - 50 * amplitude} L ${x + qrsDur - 5} ${y + 15} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else if (qrs === "wide-lbbb-v1") {
-            const qrsDur = 40 * scaleFactor;
-            path += `L ${x + 5} ${y + 8} L ${x + 15 * scaleFactor} ${y + 60 * amplitude} L ${x + 32 * scaleFactor} ${y - 10} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else if (qrs === "wide-rbbb-v1") {
-            const qrsDur = 40 * scaleFactor;
-            path += `L ${x + 5} ${y - 30 * amplitude} L ${x + 12 * scaleFactor} ${y + 10} L ${x + 22 * scaleFactor} ${y - 45 * amplitude} L ${x + 35 * scaleFactor} ${y + 12} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else if (qrs === "wide-rbbb") {
-            const qrsDur = 40 * scaleFactor;
-            path += `L ${x + 5} ${y - 55 * amplitude} L ${x + 16 * scaleFactor} ${y + 10} L ${x + 32 * scaleFactor} ${y + 50 * amplitude} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else if (qrs === "delta") {
-            // Delta wave (WPW)
-            const qrsDur = 36 * scaleFactor;
-            path += `L ${x + 12 * scaleFactor} ${y - 18} L ${x + 22 * scaleFactor} ${y - 60 * amplitude} L ${x + 32 * scaleFactor} ${y + 15} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        } else {
-            // Default narrow
-            const qrsDur = 12 * scaleFactor;
-            path += `L ${x + 2} ${y + 5} L ${x + qrsDur/2} ${y - 55 * amplitude} L ${x + qrsDur - 2} ${y + 12} L ${x + qrsDur} ${y - stOffset} `;
-            x += qrsDur;
-        }
-
-        // J-point elevation
-        if (jpoint) {
-            path += `L ${x + 5 * scaleFactor} ${y - stOffset - 5} `;
-            x += 5 * scaleFactor;
-        }
-
-        // ST Segment - varies with QT interval
-        // Short QT (hypercalcemia): shortened/absent ST segment
-        // Long QT (hypocalcemia): prolonged ST segment
-        // Concave (pericarditis): upward curving "smiley face" ST
-        let stSegPx = 12 * scaleFactor;
-        if (shortqt) stSegPx = 4 * scaleFactor;  // Shortened ST
-        if (longqt) stSegPx = 22 * scaleFactor;  // Prolonged ST
-        
-        if (concave && st > 0) {
-            // Concave upward ST elevation (pericarditis "smiley face")
-            path += `Q ${x + stSegPx/2} ${y - stOffset - 8} ${x + stSegPx} ${y - stOffset} `;
-        } else {
-            path += `L ${x + stSegPx} ${y - stOffset} `;
-        }
-        x += stSegPx;
-
-        // T Wave (~160ms duration, adjusted for QT)
-        let tHeight = 22 * amplitude;
-        if (t === "peaked") tHeight = 42 * amplitude;
-        else if (t === "inverted") tHeight = -20 * amplitude;
-        else if (t === "flattened") tHeight = 6;
-        else if (t === "hyperacute") tHeight = 38 * amplitude;
-        else if (t === "biphasic") {
-            const tDur = 35 * scaleFactor;
-            path += `Q ${x + tDur/3} ${y - stOffset - 18} ${x + tDur/2} ${y - stOffset} Q ${x + tDur * 0.75} ${y - stOffset + 14} ${x + tDur} ${y} `;
-            x += tDur;
-            path += `L ${width - 10} ${y}`;
-            
-            // Cache and return
-            pathCache.set(cacheKey, path);
-            if (pathCache.size > 500) {
-                const firstKey = pathCache.keys().next().value;
-                pathCache.delete(firstKey);
-            }
-            return path;
-        }
-        
-        // Adjust T wave duration for QT interval
-        let tDuration = 35 * scaleFactor;
-        if (shortqt) tDuration = 25 * scaleFactor;  // Shorter T wave
-        if (longqt) tDuration = 50 * scaleFactor;   // Longer T wave
-        
-        path += `Q ${x + tDuration/2} ${y - stOffset - tHeight} ${x + tDuration} ${y} `;
-        x += tDuration;
-
-        // U Wave (if present - hypokalemia)
-        if (u) {
-            const uDur = 15 * scaleFactor;
-            path += `Q ${x + uDur/2} ${y - 10} ${x + uDur} ${y} `;
-            x += uDur;
-        }
-
-        // End baseline
         path += `L ${width - 10} ${y}`;
 
-        // Cache the result
         pathCache.set(cacheKey, path);
-        
-        // Limit cache size to prevent memory issues
         if (pathCache.size > 500) {
             const firstKey = pathCache.keys().next().value;
             pathCache.delete(firstKey);
@@ -2732,7 +2861,8 @@
             
             // Check if this is a traced lead
             const isTracedLead = ecgData.traced && ecgData.path;
-            const pathData = isTracedLead ? ecgData.path : drawECGPath(ecgData);
+            const ecgRate = state.currentECG?.rate || 75;
+            const pathData = isTracedLead ? ecgData.path : drawECGPath(ecgData, 250, 200, ecgRate);
             const strokeColor = isTracedLead ? (ecgData.color || '#1e293b') : '#1e293b';
             const strokeWidth = isTracedLead ? (ecgData.strokeWidth || 2.5) : 2.5;
             
@@ -2759,8 +2889,6 @@
         // Use selected rhythm strip lead
         const rhythmLead = state.rhythmStripLead || 'II';
         const rhythmConfig = state.currentECG?.leads?.[rhythmLead] || state.currentECG?.leads?.II || DEFAULT_LEAD_CONFIG;
-        const ecgRate = state.currentECG?.rate || 75;
-        
         // Check if rhythm strip should use traced path
         const rhythmData = state.currentECG?.leads?.rhythm;
         const isTracedRhythm = rhythmData?.traced && rhythmData?.path;
@@ -2958,6 +3086,9 @@
     function formatAbnormality(code) {
         const labels = {
             bradycardia: "Brady", tachycardia: "Tachy",
+            afib: "AFib", aflutter: "AFlutter", mat: "MAT", svt_avnrt: "SVT/AVNRT",
+            first_degree_avb: "1° AVB", mobitz_1: "Mobitz I", mobitz_2: "Mobitz II", third_degree_avb: "3° AVB",
+            pvc: "PVCs", vtach: "VT", torsades: "Torsades", vfib: "VFib",
             absent_p: "No P", p_mitrale: "P mitrale", p_pulmonale: "P pulmonale",
             retrograde_p: "Retro P", flutter_waves: "Flutter", fib_waves: "AFib",
             short_pr: "Short PR", long_pr: "Long PR", variable_pr: "Var PR",
@@ -2965,11 +3096,21 @@
             delta_wave: "Delta", rsr_prime: "RSR'", deep_s: "Deep S", tall_r: "Tall R",
             poor_r_prog: "Poor R prog",
             st_elevation: "ST↑", st_depression: "ST↓", st_coved: "Coved ST", st_concave: "Concave ST",
+            prinzmetal: "Prinzmetal",
             t_inversion: "T inv", t_peaked: "Peaked T", t_flattened: "Flat T",
             t_biphasic: "Biphasic T", t_hyperacute: "Hyperacute T",
             long_qt: "Long QT", short_qt: "Short QT",
             prominent_u: "Prominent U",
-            av_dissociation: "AV dissoc", escape_rhythm: "Escape", osborn_wave: "Osborn J"
+            anterior_mi: "Anterior MI", inferior_mi: "Inferior MI", lateral_mi: "Lateral MI", posterior_mi: "Posterior MI",
+            q_wave: "Q-wave",
+            lvh: "LVH", rvh: "RVH", lae: "LAE", rae: "RAE",
+            lbbb: "LBBB", rbbb: "RBBB", brugada: "Brugada", wpw: "WPW",
+            pericarditis: "Pericarditis",
+            s1q3t3: "S1Q3T3", cor_pulmonale: "Cor pulmonale",
+            hyperkalemia: "HyperK", hypokalemia: "HypoK", hypercalcemia: "HyperCa", hypocalcemia: "HypoCa",
+            digoxin_effect: "Digoxin", tca_toxicity: "TCA tox", lithium_toxicity: "Lithium", magnesium_disorder: "Mg disorder",
+            av_dissociation: "AV dissoc", escape_rhythm: "Escape", osborn_wave: "Osborn J",
+            electrical_alternans: "Electrical alternans"
         };
         return labels[code] || code;
     }
@@ -3052,7 +3193,7 @@
         } else {
             document.getElementById('modal-ecg-preview').innerHTML = `
                 <svg viewBox="0 0 300 150" preserveAspectRatio="none" class="w-full h-full">
-                    <path d="${drawECGPath(ecgData, 300, 150)}" fill="none" stroke="#1e293b" stroke-width="2.5"/>
+                    <path d="${drawECGPath(ecgData, 300, 150, state.currentECG?.rate || 75)}" fill="none" stroke="#1e293b" stroke-width="2.5"/>
                 </svg>
             `;
         }
@@ -3152,9 +3293,9 @@
         sample: ['sample_0', 'sample_1', 'sample_2', 'sample_3', 'sample_4'],
         normal: ['normal_sinus', 'sinus_arrhythmia', 'early_repol'],
         rate: ['sinus_brady', 'sinus_tachy'],
-        rhythm: ['afib', 'aflutter', 'vtach', 'svt', 'sinus_brady', 'sinus_tachy'],
+        rhythm: ['afib', 'aflutter', 'vtach', 'torsades', 'svt', 'sinus_brady', 'sinus_tachy'],
         block: ['first_avb', 'second_avb_1', 'second_avb_2', 'third_avb', 'lbbb', 'rbbb'],
-        stemi: ['anterior_stemi', 'inferior_stemi', 'lateral_stemi', 'posterior_mi', 'nstemi', 'de_winter', 'wellens', 'sgarbossa'],
+        stemi: ['anterior_stemi', 'inferior_stemi', 'lateral_stemi', 'posterior_mi', 'nstemi', 'stable_angina', 'unstable_angina', 'vasospastic_angina', 'de_winter', 'wellens', 'sgarbossa'],
         electrolyte: ['hyperkalemia', 'hyperkalemia_severe', 'hypokalemia', 'hypercalcemia', 'hypocalcemia'],
         other: ['wpw', 'long_qt', 'brugada', 'pericarditis', 'pe', 'lvh', 'rvh']
     };
@@ -3315,16 +3456,19 @@
             }
         };
 
+        const answerLeadOrder = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"];
+        const rhythmData = state.currentECG.leads?.rhythm;
+
         let content = `
             <div class="mb-4 p-4 bg-blue-50 rounded-xl">
                 <h4 class="font-bold text-blue-800">${state.currentECG.title}</h4>
                 <p class="text-sm text-blue-600 mt-1"><strong>Diagnosis:</strong> ${state.currentECG.diagnosis || 'Not specified'}</p>
                 <p class="text-sm text-blue-600"><strong>Rate:</strong> ${state.currentECG.rate || 75} bpm</p>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-4 grid-rows-3 grid-flow-col gap-3">
         `;
 
-        ALL_LEADS.forEach(lead => {
+        answerLeadOrder.forEach(lead => {
             const data = state.currentECG.leads?.[lead];
             if (!data) return;
             
@@ -3332,7 +3476,7 @@
             const style = isNormal ? statusStyles.normal : statusStyles.abnormal;
             content += `
                 <div class="p-3 rounded-lg border ${style.card}">
-                    <p class="font-bold ${style.title}">${lead === 'rhythm' ? 'Rhythm Strip' : lead}</p>
+                    <p class="font-bold ${style.title}">${lead}</p>
                     <p class="text-xs ${style.text} capitalize">${data.status}</p>
                     ${data.abnormality ? `<p class="text-xs ${style.detail} font-medium mt-1">${formatAbnormality(data.abnormality)}</p>` : ''}
                 </div>
@@ -3340,6 +3484,18 @@
         });
 
         content += '</div>';
+
+        if (rhythmData) {
+            const isNormal = rhythmData.status === 'normal';
+            const style = isNormal ? statusStyles.normal : statusStyles.abnormal;
+            content += `
+                <div class="mt-4 p-3 rounded-lg border ${style.card}">
+                    <p class="font-bold ${style.title}">Rhythm Strip</p>
+                    <p class="text-xs ${style.text} capitalize">${rhythmData.status}</p>
+                    ${rhythmData.abnormality ? `<p class="text-xs ${style.detail} font-medium mt-1">${formatAbnormality(rhythmData.abnormality)}</p>` : ''}
+                </div>
+            `;
+        }
         
         const answerContent = getEl('answer-key-content');
         const answerModal = getEl('answer-modal');
@@ -3474,14 +3630,55 @@
                         <option value="">Select abnormality...</option>
                         <option value="st_elevation">ST Elevation</option>
                         <option value="st_depression">ST Depression</option>
+                        <option value="st_coved">Coved ST</option>
+                        <option value="st_concave">Concave ST</option>
                         <option value="t_inversion">T Inversion</option>
                         <option value="t_peaked">Peaked T</option>
+                        <option value="t_flattened">Flattened T</option>
+                        <option value="t_biphasic">Biphasic T</option>
+                        <option value="t_hyperacute">Hyperacute T</option>
                         <option value="pathologic_q">Pathologic Q</option>
+                        <option value="q_wave">Q-wave Formation</option>
                         <option value="wide_qrs">Wide QRS</option>
                         <option value="delta_wave">Delta Wave</option>
+                        <option value="rsr_prime">RSR' Pattern</option>
+                        <option value="deep_s">Deep S</option>
+                        <option value="tall_r">Tall R</option>
                         <option value="absent_p">Absent P</option>
                         <option value="flutter_waves">Flutter Waves</option>
                         <option value="fib_waves">Fib Waves</option>
+                        <option value="afib">Atrial Fibrillation</option>
+                        <option value="aflutter">Atrial Flutter</option>
+                        <option value="mat">MAT</option>
+                        <option value="svt_avnrt">SVT / AVNRT</option>
+                        <option value="first_degree_avb">1st Degree AVB</option>
+                        <option value="mobitz_1">Mobitz I</option>
+                        <option value="mobitz_2">Mobitz II</option>
+                        <option value="third_degree_avb">3rd Degree AVB</option>
+                        <option value="pvc">PVCs</option>
+                        <option value="vtach">Ventricular Tachycardia</option>
+                        <option value="torsades">Torsades</option>
+                        <option value="vfib">Ventricular Fibrillation</option>
+                        <option value="lvh">LVH</option>
+                        <option value="rvh">RVH</option>
+                        <option value="lae">LAE</option>
+                        <option value="rae">RAE</option>
+                        <option value="lbbb">LBBB</option>
+                        <option value="rbbb">RBBB</option>
+                        <option value="brugada">Brugada</option>
+                        <option value="wpw">WPW</option>
+                        <option value="pericarditis">Pericarditis</option>
+                        <option value="s1q3t3">S1Q3T3</option>
+                        <option value="cor_pulmonale">Cor Pulmonale</option>
+                        <option value="hyperkalemia">Hyperkalemia</option>
+                        <option value="hypokalemia">Hypokalemia</option>
+                        <option value="hypercalcemia">Hypercalcemia</option>
+                        <option value="hypocalcemia">Hypocalcemia</option>
+                        <option value="digoxin_effect">Digoxin Effect</option>
+                        <option value="tca_toxicity">TCA Toxicity</option>
+                        <option value="lithium_toxicity">Lithium-related</option>
+                        <option value="magnesium_disorder">Magnesium Disorder</option>
+                        <option value="electrical_alternans">Electrical Alternans</option>
                     </select>
                     <div class="mt-2">
                         <label class="text-xs text-slate-500">ST Offset (mm)</label>
@@ -3581,7 +3778,7 @@
                         <div class="relative h-16 ecg-paper rounded border ${config.status === 'abnormal' ? 'border-red-300' : 'border-slate-200'}">
                             <span class="absolute top-1 left-1 text-[9px] font-bold text-red-700 bg-white px-1 rounded">${lead}</span>
                             <svg viewBox="0 0 250 200" preserveAspectRatio="none" class="w-full h-full">
-                                <path d="${drawECGPath(config)}" fill="none" stroke="#1e293b" stroke-width="2"/>
+                                <path d="${drawECGPath(config, 250, 200, 75)}" fill="none" stroke="#1e293b" stroke-width="2"/>
                             </svg>
                         </div>
                     `;
@@ -3602,6 +3799,184 @@
         if (answerContent) answerContent.innerHTML = previewHTML;
         if (modalHeader) modalHeader.textContent = '👁️ ECG Preview';
         if (answerModal) answerModal.classList.add('active');
+    }
+
+    function switchTab(tabId) {
+        const tabs = ['ecg-tab', 'torso-tab'];
+        tabs.forEach(tab => {
+            const el = document.getElementById(tab);
+            if (el) el.classList.toggle('hidden', tab !== tabId);
+        });
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabId);
+        });
+        if (tabId === 'torso-tab') {
+            initializeTorsoGame();
+        }
+    }
+
+    function initializeTorsoGame() {
+        renderTorsoZones();
+        renderTorsoTokens();
+        updateTorsoScore();
+    }
+
+    function renderTorsoZones() {
+        const board = document.getElementById('torso-board');
+        if (!board) return;
+        board.querySelectorAll('.torso-zone').forEach(el => el.remove());
+
+        torsoLeadZones.forEach(zone => {
+            const zoneEl = document.createElement('div');
+            zoneEl.className = 'torso-zone';
+            zoneEl.dataset.zone = zone.id;
+            zoneEl.style.left = `${zone.left}%`;
+            zoneEl.style.top = `${zone.top}%`;
+            zoneEl.textContent = zone.label;
+            zoneEl.style.transform = 'translate(-50%, -50%)';
+            board.appendChild(zoneEl);
+        });
+    }
+
+    function renderTorsoTokens() {
+        const tray = document.getElementById('torso-token-tray');
+        if (!tray) return;
+        tray.innerHTML = '';
+        state.torsoGame.placements = {};
+
+        const tokens = torsoLeadZones.map(zone => zone.id);
+        tokens.forEach((token, index) => {
+            const tokenEl = document.createElement('div');
+            tokenEl.className = 'torso-token';
+            tokenEl.textContent = token;
+            tokenEl.dataset.token = token;
+            tokenEl.style.left = `${(index % 2) * 60 + 10}px`;
+            tokenEl.style.top = `${Math.floor(index / 2) * 42 + 6}px`;
+            tokenEl.addEventListener('mousedown', (e) => startTorsoDrag(e, tokenEl));
+            tokenEl.addEventListener('touchstart', (e) => startTorsoDrag(e, tokenEl), { passive: false });
+            tray.appendChild(tokenEl);
+        });
+    }
+
+    function startTorsoDrag(event, tokenEl) {
+        event.preventDefault();
+        state.torsoGame.draggingToken = tokenEl;
+        tokenEl.classList.add('dragging');
+
+        const moveHandler = (e) => handleTorsoDrag(e);
+        const upHandler = (e) => endTorsoDrag(e, moveHandler, upHandler);
+        window.addEventListener('mousemove', moveHandler);
+        window.addEventListener('mouseup', upHandler);
+        window.addEventListener('touchmove', moveHandler, { passive: false });
+        window.addEventListener('touchend', upHandler);
+    }
+
+    function handleTorsoDrag(event) {
+        if (!state.torsoGame.draggingToken) return;
+        const board = document.getElementById('torso-board');
+        if (!board) return;
+        const rect = board.getBoundingClientRect();
+        const point = getPointerPosition(event);
+        const x = point.x - rect.left;
+        const y = point.y - rect.top;
+        const token = state.torsoGame.draggingToken;
+        token.style.left = `${x - token.offsetWidth / 2}px`;
+        token.style.top = `${y - token.offsetHeight / 2}px`;
+        if (token.parentElement !== board) {
+            board.appendChild(token);
+        }
+    }
+
+    function endTorsoDrag(event, moveHandler, upHandler) {
+        const token = state.torsoGame.draggingToken;
+        if (!token) return;
+        token.classList.remove('dragging');
+        state.torsoGame.draggingToken = null;
+        window.removeEventListener('mousemove', moveHandler);
+        window.removeEventListener('mouseup', upHandler);
+        window.removeEventListener('touchmove', moveHandler);
+        window.removeEventListener('touchend', upHandler);
+        snapTokenToZone(token, event);
+    }
+
+    function snapTokenToZone(token, event) {
+        const board = document.getElementById('torso-board');
+        if (!board) return;
+        const boardRect = board.getBoundingClientRect();
+        const point = getPointerPosition(event);
+        const x = point.x - boardRect.left;
+        const y = point.y - boardRect.top;
+        const threshold = 35;
+        let closest = null;
+        let closestDistance = Infinity;
+
+        torsoLeadZones.forEach(zone => {
+            const zoneX = (zone.left / 100) * boardRect.width;
+            const zoneY = (zone.top / 100) * boardRect.height;
+            const distance = Math.hypot(zoneX - x, zoneY - y);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closest = zone;
+            }
+        });
+
+        if (closest && closestDistance < threshold) {
+            token.style.left = `${(closest.left / 100) * boardRect.width - token.offsetWidth / 2}px`;
+            token.style.top = `${(closest.top / 100) * boardRect.height - token.offsetHeight / 2}px`;
+            state.torsoGame.placements[token.dataset.token] = closest.id;
+        } else {
+            delete state.torsoGame.placements[token.dataset.token];
+        }
+    }
+
+    function checkTorsoPlacements() {
+        const board = document.getElementById('torso-board');
+        if (!board) return;
+        let correct = 0;
+        torsoLeadZones.forEach(zone => {
+            const placed = state.torsoGame.placements[zone.id];
+            const zoneEl = board.querySelector(`.torso-zone[data-zone="${zone.id}"]`);
+            const isCorrect = placed === zone.id;
+            if (zoneEl) zoneEl.classList.toggle('correct', isCorrect);
+            if (isCorrect) correct++;
+        });
+
+        state.torsoGame.score += correct * 10;
+        if (correct === torsoLeadZones.length) {
+            state.torsoGame.streak += 1;
+            updateTorsoFeedback(`Perfect! ${correct}/${torsoLeadZones.length} leads placed correctly. 🔥`, 'text-green-600');
+        } else {
+            state.torsoGame.streak = 0;
+            updateTorsoFeedback(`You placed ${correct}/${torsoLeadZones.length} leads correctly. Try again for a perfect round.`, 'text-orange-600');
+        }
+        updateTorsoScore();
+    }
+
+    function resetTorsoRound() {
+        renderTorsoZones();
+        renderTorsoTokens();
+        updateTorsoFeedback('Round reset. Drag the labels onto the torso zones.', 'text-slate-500');
+    }
+
+    function updateTorsoScore() {
+        const scoreEl = document.getElementById('torso-score');
+        const streakEl = document.getElementById('torso-streak');
+        if (scoreEl) scoreEl.textContent = state.torsoGame.score;
+        if (streakEl) streakEl.textContent = state.torsoGame.streak;
+    }
+
+    function updateTorsoFeedback(message, colorClass) {
+        const feedback = document.getElementById('torso-feedback');
+        if (!feedback) return;
+        feedback.textContent = message;
+        feedback.className = `mt-3 text-sm ${colorClass}`;
+    }
+
+    function getPointerPosition(event) {
+        if (event.touches && event.touches[0]) {
+            return { x: event.touches[0].clientX, y: event.touches[0].clientY };
+        }
+        return { x: event.clientX, y: event.clientY };
     }
 
     function buildDesignECG() {
@@ -3658,6 +4033,7 @@
     // ============================================
     document.addEventListener('DOMContentLoaded', () => {
         renderECGGrid();
+        initializeTorsoGame();
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
