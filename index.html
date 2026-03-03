@@ -4196,10 +4196,15 @@
                 }
             }
             
-            // R for random ECG
+            // R for random ECG, D for due review ECG
             if (e.key === 'r' || e.key === 'R') {
                 if (!modalOpen) {
                     loadRandomECG();
+                }
+            }
+            if (e.key === 'd' || e.key === 'D') {
+                if (!modalOpen) {
+                    loadDueECG();
                 }
             }
             
