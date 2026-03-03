@@ -453,6 +453,9 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         Random
                     </button>
+                    <button onclick="loadDueECG()" id="due-ecg-btn" class="btn btn-outline flex items-center gap-2 text-amber-600 border-amber-300 hover:bg-amber-50" title="Load an ECG due for spaced repetition review">
+                        📋 Review Due
+                    </button>
                 </div>
                 
                 <button onclick="showImportModal()" class="btn btn-outline flex items-center gap-2">
@@ -1106,6 +1109,106 @@
     </div>
 
     <script>
+    // ============================================
+    // PROGRESS TRACKING (SM-2 Spaced Repetition)
+    // ============================================
+    function ecgSm2Update(card, quality) {
+        const q = Math.min(5, Math.max(0, quality));
+        let { interval = 0, easeFactor = 2.5 } = card || {};
+        let repetitions = card?.repetitions || 0;
+        if (q >= 3) {
+            if (repetitions === 0) interval = 1;
+            else if (repetitions === 1) interval = 3;
+            else interval = Math.round(interval * easeFactor);
+            repetitions++;
+        } else {
+            repetitions = 0;
+            interval = 1;
+        }
+        easeFactor = Math.max(1.3, easeFactor + 0.1 - (5 - q) * (0.08 + (5 - q) * 0.02));
+        const dueDate = Date.now() + interval * 24 * 60 * 60 * 1000;
+        return { interval, repetitions, easeFactor, dueDate };
+    }
+
+    function loadDueECG() {
+        const progress = getEcgProgress();
+        const now = Date.now();
+        const dueKeys = Object.keys(progress).filter(k => !progress[k].dueDate || progress[k].dueDate <= now);
+        if (dueKeys.length === 0) {
+            alert('🎉 No ECGs due for review! Try loading a random ECG to build your deck.');
+            return;
+        }
+        // Pick lowest-scored due ECG for priority
+        dueKeys.sort((a, b) => (progress[a].bestScore || 0) - (progress[b].bestScore || 0));
+        const selector = document.getElementById('ecg-selector');
+        if (selector) {
+            selector.value = dueKeys[0];
+            loadSelectedECG();
+        }
+    }
+
+    function getEcgProgress() {
+        try { return JSON.parse(localStorage.getItem('ecg_progress') || '{}'); } catch { return {}; }
+    }
+
+    function saveEcgProgress(progress) {
+        try { localStorage.setItem('ecg_progress', JSON.stringify(progress)); } catch {}
+    }
+
+    function renderProgressStats() {
+        const progress = getEcgProgress();
+        const keys = Object.keys(progress);
+        if (keys.length === 0) return;
+
+        const now = Date.now();
+        const dueNow = keys.filter(k => !progress[k].dueDate || progress[k].dueDate <= now);
+        const totalAttempts = keys.reduce((sum, k) => sum + (progress[k].attempts || 0), 0);
+        const avgBest = keys.length > 0 ? Math.round(keys.reduce((sum, k) => sum + (progress[k].bestScore || 0), 0) / keys.length) : 0;
+
+        let statsEl = document.getElementById('ecg-progress-stats');
+        if (!statsEl) {
+            statsEl = document.createElement('div');
+            statsEl.id = 'ecg-progress-stats';
+            statsEl.className = 'card p-3 text-sm';
+            const scoreCard = document.getElementById('score-card');
+            if (scoreCard && scoreCard.parentNode) {
+                scoreCard.parentNode.insertBefore(statsEl, scoreCard.nextSibling);
+            }
+        }
+
+        statsEl.innerHTML = `
+            <div class="flex items-center justify-between">
+                <h4 class="font-bold text-slate-700">📈 Your Progress</h4>
+                <button onclick="document.getElementById('ecg-progress-detail').classList.toggle('hidden')" class="text-xs text-blue-600 hover:underline">Details</button>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mt-2">
+                <div class="text-center bg-blue-50 rounded-lg p-2">
+                    <div class="text-xl font-bold text-blue-600">${keys.length}</div>
+                    <div class="text-xs text-slate-500">ECGs studied</div>
+                </div>
+                <div class="text-center bg-amber-50 rounded-lg p-2">
+                    <div class="text-xl font-bold text-amber-600">${dueNow.length}</div>
+                    <div class="text-xs text-slate-500">due for review</div>
+                </div>
+                <div class="text-center bg-green-50 rounded-lg p-2">
+                    <div class="text-xl font-bold text-green-600">${avgBest}%</div>
+                    <div class="text-xs text-slate-500">avg best score</div>
+                </div>
+            </div>
+            <div id="ecg-progress-detail" class="hidden mt-3 space-y-1 max-h-40 overflow-y-auto">
+                ${keys.sort((a,b) => (progress[a].dueDate||0) - (progress[b].dueDate||0)).map(k => {
+                    const p = progress[k];
+                    const due = !p.dueDate || p.dueDate <= now;
+                    const daysUntil = p.dueDate ? Math.max(0, Math.ceil((p.dueDate - now) / 86400000)) : 0;
+                    return `<div class="flex items-center justify-between text-xs px-2 py-1 rounded ${due ? 'bg-amber-50' : 'bg-slate-50'}">
+                        <span class="font-medium">${k.replace(/_/g, ' ')}</span>
+                        <span class="text-slate-500">best: ${p.bestScore}% · ${due ? '⚡ due' : `in ${daysUntil}d`}</span>
+                    </div>`;
+                }).join('')}
+            </div>
+        `;
+    }
+
     // ============================================
     // CONSTANTS & CALIBRATION
     // ============================================
@@ -3433,6 +3536,21 @@
         if (scoreDisplay) scoreDisplay.textContent = `${percent}%`;
         if (scoreDetail) scoreDetail.textContent = `${correct} of ${total} leads correct`;
         if (scoreCard) scoreCard.classList.remove('hidden');
+
+        // ── Persist progress (SM-2-inspired difficulty tracking) ──
+        const ecgId = document.getElementById('ecg-selector')?.value;
+        if (ecgId) {
+            const progress = getEcgProgress();
+            const prev = progress[ecgId] || { attempts: 0, bestScore: 0, lastScore: 0, interval: 1, easeFactor: 2.5, dueDate: 0 };
+            const quality = percent >= 90 ? 5 : percent >= 75 ? 4 : percent >= 60 ? 3 : 2;
+            const updated = ecgSm2Update(prev, quality);
+            updated.attempts = (prev.attempts || 0) + 1;
+            updated.bestScore = Math.max(prev.bestScore || 0, percent);
+            updated.lastScore = percent;
+            progress[ecgId] = updated;
+            saveEcgProgress(progress);
+            renderProgressStats();
+        }
     }
 
     function showAnswerKey() {
@@ -4034,6 +4152,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         renderECGGrid();
         initializeTorsoGame();
+        renderProgressStats();
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
