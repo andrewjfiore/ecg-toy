@@ -1,0 +1,330 @@
+[
+  {
+    "test": "malformed_json/empty_string",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe2",
+    "finding": "JSON.parse fails safely: Expecting value: line 1 column 1 (char 0)",
+    "suggestion": "Current try/catch handles this \u2014 verify user sees meaningful error message",
+    "passed": true
+  },
+  {
+    "test": "malformed_json/just_null",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe2",
+    "finding": "JSON.parse fails safely: 'NoneType' object has no attribute 'get'",
+    "suggestion": "Current try/catch handles this \u2014 verify user sees meaningful error message",
+    "passed": true
+  },
+  {
+    "test": "malformed_json/just_array",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe2",
+    "finding": "JSON.parse fails safely: 'list' object has no attribute 'get'",
+    "suggestion": "Current try/catch handles this \u2014 verify user sees meaningful error message",
+    "passed": true
+  },
+  {
+    "test": "malformed_json/truncated_json",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe2",
+    "finding": "JSON.parse fails safely: Expecting property name enclosed in double quotes: line 1 column 29 (char 28)",
+    "suggestion": "Current try/catch handles this \u2014 verify user sees meaningful error message",
+    "passed": true
+  },
+  {
+    "test": "malformed_json/json_with_comment",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe2",
+    "finding": "JSON.parse fails safely: Expecting ',' delimiter: line 1 column 18 (char 17)",
+    "suggestion": "Current try/catch handles this \u2014 verify user sees meaningful error message",
+    "passed": true
+  },
+  {
+    "test": "malformed_json/trailing_comma",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe2",
+    "finding": "JSON.parse fails safely: Expecting property name enclosed in double quotes: line 1 column 31 (char 30)",
+    "suggestion": "Current try/catch handles this \u2014 verify user sees meaningful error message",
+    "passed": true
+  },
+  {
+    "test": "malformed_json/single_quotes",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe2",
+    "finding": "JSON.parse fails safely: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)",
+    "suggestion": "Current try/catch handles this \u2014 verify user sees meaningful error message",
+    "passed": true
+  },
+  {
+    "test": "malformed_json/unicode_bom",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe2",
+    "finding": "JSON.parse fails safely: Unexpected UTF-8 BOM (decode using utf-8-sig): line 1 column 1 (char 0)",
+    "suggestion": "Current try/catch handles this \u2014 verify user sees meaningful error message",
+    "passed": true
+  },
+  {
+    "test": "malformed_json/control_chars",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe2",
+    "finding": "JSON.parse fails safely: Invalid control character at: line 1 column 14 (char 13)",
+    "suggestion": "Current try/catch handles this \u2014 verify user sees meaningful error message",
+    "passed": true
+  },
+  {
+    "test": "malformed_json/nested_overflow_depth",
+    "category": "JSON Import",
+    "severity": "\ud83d\udfe1",
+    "finding": "Unexpected parse success for 'nested_overflow_depth' \u2014 may cause runtime errors downstream",
+    "suggestion": "Add schema validation after parse before using data",
+    "passed": false
+  },
+  {
+    "test": "xss_title/<script>alert(\"XSS\")</script>",
+    "category": "XSS",
+    "severity": "\ud83d\udd34",
+    "finding": "XSS payload stored verbatim in title field: <script>alert(\"XSS\")</script>",
+    "suggestion": "Sanitize imported title/diagnosis fields with DOMPurify or strip HTML tags. Verify JS template literals use textContent not innerHTML for these fields.",
+    "passed": false
+  },
+  {
+    "test": "xss_title/\"><img src=x onerror=alert(1)>",
+    "category": "XSS",
+    "severity": "\ud83d\udd34",
+    "finding": "XSS payload stored verbatim in title field: \"><img src=x onerror=alert(1)>",
+    "suggestion": "Sanitize imported title/diagnosis fields with DOMPurify or strip HTML tags. Verify JS template literals use textContent not innerHTML for these fields.",
+    "passed": false
+  },
+  {
+    "test": "xss_title/javascript:alert(1)",
+    "category": "XSS",
+    "severity": "\ud83d\udd34",
+    "finding": "XSS payload stored verbatim in title field: javascript:alert(1)",
+    "suggestion": "Sanitize imported title/diagnosis fields with DOMPurify or strip HTML tags. Verify JS template literals use textContent not innerHTML for these fields.",
+    "passed": false
+  },
+  {
+    "test": "xss_title/<svg onload=alert(1)>",
+    "category": "XSS",
+    "severity": "\ud83d\udd34",
+    "finding": "XSS payload stored verbatim in title field: <svg onload=alert(1)>",
+    "suggestion": "Sanitize imported title/diagnosis fields with DOMPurify or strip HTML tags. Verify JS template literals use textContent not innerHTML for these fields.",
+    "passed": false
+  },
+  {
+    "test": "xss_title/{{constructor.constructor(\"ale",
+    "category": "XSS",
+    "severity": "\ud83d\udd34",
+    "finding": "XSS payload stored verbatim in title field: {{constructor.constructor(\"alert(1)\")()}}",
+    "suggestion": "Sanitize imported title/diagnosis fields with DOMPurify or strip HTML tags. Verify JS template literals use textContent not innerHTML for these fields.",
+    "passed": false
+  },
+  {
+    "test": "xss_title/'; DROP TABLE users; --",
+    "category": "XSS",
+    "severity": "\ud83d\udd34",
+    "finding": "XSS payload stored verbatim in title field: '; DROP TABLE users; --",
+    "suggestion": "Sanitize imported title/diagnosis fields with DOMPurify or strip HTML tags. Verify JS template literals use textContent not innerHTML for these fields.",
+    "passed": false
+  },
+  {
+    "test": "xss_title/<iframe src=\"javascript:alert(",
+    "category": "XSS",
+    "severity": "\ud83d\udd34",
+    "finding": "XSS payload stored verbatim in title field: <iframe src=\"javascript:alert(1)\">",
+    "suggestion": "Sanitize imported title/diagnosis fields with DOMPurify or strip HTML tags. Verify JS template literals use textContent not innerHTML for these fields.",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/rate_zero",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'rate' accepts extreme value: 0",
+    "suggestion": "Add range validation for rate \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/rate_negative",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'rate' accepts extreme value: -100",
+    "suggestion": "Add range validation for rate \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/rate_infinity",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'rate' accepts extreme value: inf",
+    "suggestion": "Add range validation for rate \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/rate_nan",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'rate' accepts extreme value: nan",
+    "suggestion": "Add range validation for rate \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/rate_huge",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'rate' accepts extreme value: 999999999",
+    "suggestion": "Add range validation for rate \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/rate_string",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'rate' accepts extreme value: fast",
+    "suggestion": "Add range validation for rate \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/pr_negative",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'pr' accepts extreme value: -500",
+    "suggestion": "Add range validation for pr \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/qt_zero",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'qt' accepts extreme value: 0",
+    "suggestion": "Add range validation for qt \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/axis_out_of_range",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'axis' accepts extreme value: 999",
+    "suggestion": "Add range validation for axis \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "extreme_numeric/st_extreme",
+    "category": "Input Validation",
+    "severity": "\ud83d\udfe1",
+    "finding": "Field 'leads.V1.stElevation' accepts extreme value: 9999",
+    "suggestion": "Add range validation for leads.V1.stElevation \u2014 clamp or reject out-of-range values",
+    "passed": false
+  },
+  {
+    "test": "missing_fields/no_leads",
+    "category": "Robustness",
+    "severity": "\ud83d\udfe1",
+    "finding": "Import accepts ECG with no_leads \u2014 may cause rendering errors",
+    "suggestion": "Add validation: check all 12 standard leads present before rendering",
+    "passed": false
+  },
+  {
+    "test": "missing_fields/empty_leads",
+    "category": "Robustness",
+    "severity": "\ud83d\udfe1",
+    "finding": "Import accepts ECG with empty_leads \u2014 may cause rendering errors",
+    "suggestion": "Add validation: check all 12 standard leads present before rendering",
+    "passed": false
+  },
+  {
+    "test": "missing_fields/partial_leads",
+    "category": "Robustness",
+    "severity": "\ud83d\udfe1",
+    "finding": "Import accepts ECG with partial_leads \u2014 may cause rendering errors",
+    "suggestion": "Add validation: check all 12 standard leads present before rendering",
+    "passed": false
+  },
+  {
+    "test": "missing_fields/leads_not_dict",
+    "category": "Robustness",
+    "severity": "\ud83d\udfe1",
+    "finding": "Import accepts ECG with leads_not_dict \u2014 may cause rendering errors",
+    "suggestion": "Add validation: check all 12 standard leads present before rendering",
+    "passed": false
+  },
+  {
+    "test": "missing_fields/leads_null",
+    "category": "Robustness",
+    "severity": "\ud83d\udfe1",
+    "finding": "Import accepts ECG with leads_null \u2014 may cause rendering errors",
+    "suggestion": "Add validation: check all 12 standard leads present before rendering",
+    "passed": false
+  },
+  {
+    "test": "missing_fields/null_lead_entry",
+    "category": "Robustness",
+    "severity": "\ud83d\udfe1",
+    "finding": "Import accepts ECG with null_lead_entry \u2014 may cause rendering errors",
+    "suggestion": "Add validation: check all 12 standard leads present before rendering",
+    "passed": false
+  },
+  {
+    "test": "missing_fields/no_title",
+    "category": "Robustness",
+    "severity": "\ud83d\udfe1",
+    "finding": "Import accepts ECG with no_title \u2014 may cause rendering errors",
+    "suggestion": "Add validation: check all 12 standard leads present before rendering",
+    "passed": false
+  },
+  {
+    "test": "huge_payload/10k_leads",
+    "category": "Performance",
+    "severity": "\ud83d\udfe2",
+    "finding": "10,000-lead parse completed in 0.012s \u2014 acceptable",
+    "suggestion": "",
+    "passed": true
+  },
+  {
+    "test": "huge_payload/1mb_title",
+    "category": "Performance/Security",
+    "severity": "\ud83d\udfe1",
+    "finding": "1MB string accepted in title field",
+    "suggestion": "Limit string field lengths (e.g., title max 500 chars)",
+    "passed": false
+  },
+  {
+    "test": "circular/deep_nesting_500",
+    "category": "Robustness",
+    "severity": "\ud83d\udfe2",
+    "finding": "500-level nested JSON parsed without crash",
+    "suggestion": "",
+    "passed": true
+  },
+  {
+    "test": "prototype_pollution/{\"__proto__\": {\"admin\": true}, \"nodes\": ",
+    "category": "Security",
+    "severity": "\ud83d\udd34",
+    "finding": "Payload with __proto__/__constructor parsed and stored",
+    "suggestion": "Use JSON.parse with reviver that strips __proto__ keys, or use Object.create(null) based parsing. In JS: after JSON.parse, check for and delete any __proto__ keys.",
+    "passed": false
+  },
+  {
+    "test": "prototype_pollution/{\"constructor\": {\"prototype\": {\"admin\": ",
+    "category": "Security",
+    "severity": "\ud83d\udd34",
+    "finding": "Payload with __proto__/__constructor parsed and stored",
+    "suggestion": "Use JSON.parse with reviver that strips __proto__ keys, or use Object.create(null) based parsing. In JS: after JSON.parse, check for and delete any __proto__ keys.",
+    "passed": false
+  },
+  {
+    "test": "prototype_pollution/{\"title\": \"test\", \"__proto__\": {\"pollute",
+    "category": "Security",
+    "severity": "\ud83d\udd34",
+    "finding": "Payload with __proto__/__constructor parsed and stored",
+    "suggestion": "Use JSON.parse with reviver that strips __proto__ keys, or use Object.create(null) based parsing. In JS: after JSON.parse, check for and delete any __proto__ keys.",
+    "passed": false
+  },
+  {
+    "test": "ecg_library/index.json",
+    "category": "Data Integrity",
+    "severity": "\ud83d\udfe1",
+    "finding": "Library file missing 'leads' field",
+    "suggestion": "Ensure all library ECG files conform to schema",
+    "passed": false
+  }
+]
