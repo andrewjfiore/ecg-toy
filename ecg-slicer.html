@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ECG Slicer — Extract 12-Lead Crops</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 1.5rem;
+  }
+  h1 { font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: .25rem; }
+  .subtitle { color: #94a3b8; font-size: .875rem; margin-bottom: 1.5rem; }
+
+  /* ── Upload area ── */
+  #drop-zone {
+    border: 2px dashed #334155;
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    margin-bottom: 1.5rem;
+  }
+  #drop-zone:hover, #drop-zone.drag-over {
+    border-color: #38bdf8;
+    background: rgba(56,189,248,.05);
+  }
+  #drop-zone p { color: #64748b; margin-top: .5rem; font-size: .875rem; }
+  #file-input { display: none; }
+  .drop-icon { font-size: 2.5rem; }
+
+  /* ── Layout ── */
+  #main-layout {
+    display: none;
+    gap: 1.5rem;
+    grid-template-columns: 1fr 340px;
+  }
+  #main-layout.visible { display: grid; }
+
+  /* ── Canvas wrapper ── */
+  #canvas-wrapper {
+    position: relative;
+    background: #1e293b;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #334155;
+  }
+  #canvas-container {
+    position: relative;
+    display: inline-block;
+    cursor: crosshair;
+  }
+  #display-canvas { display: block; max-width: 100%; }
+  #overlay-canvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+  .card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 1rem;
+  }
+  .card-title {
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: #94a3b8;
+    margin-bottom: .75rem;
+  }
+
+  /* ── Controls ── */
+  .form-row { margin-bottom: .75rem; }
+  label { display: block; font-size: .8rem; color: #94a3b8; margin-bottom: .3rem; }
+  select, input[type=range], input[type=number] {
+    width: 100%;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #e2e8f0;
+    padding: .4rem .6rem;
+    font-size: .85rem;
+  }
+  input[type=range] { padding: .2rem 0; cursor: pointer; }
+  .range-row { display: flex; align-items: center; gap: .5rem; }
+  .range-row input { flex: 1; }
+  .range-val { font-size: .8rem; color: #64748b; width: 2.5rem; text-align: right; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .5rem 1rem;
+    border: none; border-radius: 7px;
+    font-size: .85rem; font-weight: 500;
+    cursor: pointer;
+    transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(1.15); }
+  .btn:active { filter: brightness(.9); }
+  .btn-primary { background: #0ea5e9; color: #fff; width: 100%; justify-content: center; }
+  .btn-success { background: #22c55e; color: #fff; width: 100%; justify-content: center; }
+  .btn-warn { background: #f59e0b; color: #000; width: 100%; justify-content: center; margin-top: .5rem; }
+  .btn-ghost { background: #1e293b; border: 1px solid #334155; color: #94a3b8; }
+
+  /* ── Lead grid ── */
+  #lead-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .5rem;
+    margin-top: .5rem;
+  }
+  .lead-thumb {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: .35rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .lead-thumb:hover { border-color: #38bdf8; background: #0f172a; }
+  .lead-thumb .lead-name { font-size: .7rem; font-weight: 600; color: #94a3b8; }
+  .lead-thumb canvas { display: block; width: 100%; height: 50px; border-radius: 3px; margin-top: .2rem; }
+  #rhythm-thumb {
+    grid-column: 1 / -1;
+  }
+  #rhythm-thumb canvas { height: 36px; }
+
+  /* ── Status bar ── */
+  #status {
+    font-size: .8rem;
+    color: #64748b;
+    padding: .5rem 0;
+    text-align: center;
+  }
+  #status.ok { color: #22c55e; }
+  #status.err { color: #f87171; }
+
+  /* ── Inset sliders ── */
+  .four-sliders { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; bottom: 1.5rem; right: 1.5rem;
+    background: #1e293b; border: 1px solid #334155;
+    border-radius: 8px; padding: .6rem 1rem;
+    font-size: .82rem; color: #e2e8f0;
+    box-shadow: 0 4px 24px rgba(0,0,0,.4);
+    opacity: 0; transition: opacity .2s;
+    pointer-events: none; z-index: 100;
+  }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 900px) {
+    #main-layout { grid-template-columns: 1fr; }
+    .sidebar { order: -1; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🫀 ECG Slicer</h1>
+<p class="subtitle">Upload a 12-lead ECG photo or scan → auto-detects lead boxes → download individual leads</p>
+
+<div id="drop-zone" onclick="document.getElementById('file-input').click()">
+  <div class="drop-icon">📋</div>
+  <strong>Click to upload or drag &amp; drop</strong>
+  <p>Supports JPEG, PNG, WEBP — photos or scans of 12-lead ECG printouts</p>
+</div>
+<input type="file" id="file-input" accept="image/*">
+
+<div id="main-layout">
+  <!-- Canvas side -->
+  <div>
+    <div id="canvas-wrapper">
+      <div id="canvas-container">
+        <canvas id="display-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+      </div>
+    </div>
+    <div id="status">Load an image to begin.</div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <div class="card">
+      <div class="card-title">Layout</div>
+      <div class="form-row">
+        <label>ECG Format</label>
+        <select id="layout-select" onchange="applyLayout()">
+          <option value="standard_4x3">Standard 4-col × 3-row + Rhythm (GE/Philips)</option>
+          <option value="cabrera_4x3">Cabrera Order (aVL,I,−aVR,II,aVF,III + V1-V6)</option>
+          <option value="3x4">3-col × 4-row (some older machines)</option>
+          <option value="2x6">2-col × 6-row (some Holter formats)</option>
+          <option value="manual">Manual grid lines</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Padding around each lead (px)</label>
+        <div class="range-row">
+          <input type="range" id="pad-slider" min="0" max="30" value="4" oninput="updatePad(this)">
+          <span class="range-val" id="pad-val">4</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Auto-Detect Grid</div>
+      <p style="font-size:.8rem;color:#64748b;margin-bottom:.75rem;">
+        Scans for horizontal &amp; vertical dark lines. Works best on flat scans. Photos may need manual adjustment.
+      </p>
+      <button class="btn btn-primary" onclick="autoDetect()">⚡ Auto-Detect Grid</button>
+      <div style="margin-top:.75rem">
+        <div class="form-row">
+          <label>Detection sensitivity</label>
+          <div class="range-row">
+            <input type="range" id="sensitivity" min="1" max="10" value="5">
+            <span class="range-val" id="sens-val">5</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Manual Crop Inset</div>
+      <p style="font-size:.8rem;color:#64748b;margin-bottom:.75rem;">Trim image edges before slicing (useful for photos with margins).</p>
+      <div class="four-sliders">
+        <div>
+          <label>Top %</label>
+          <div class="range-row">
+            <input type="range" id="inset-top" min="0" max="40" value="5" oninput="renderOverlay()">
+            <span class="range-val" id="inset-top-val">5</span>
+          </div>
+        </div>
+        <div>
+          <label>Bottom %</label>
+          <div class="range-row">
+            <input type="range" id="inset-bot" min="0" max="40" value="5" oninput="renderOverlay()">
+            <span class="range-val" id="inset-bot-val">5</span>
+          </div>
+        </div>
+        <div>
+          <label>Left %</label>
+          <div class="range-row">
+            <input type="range" id="inset-left" min="0" max="40" value="3" oninput="renderOverlay()">
+            <span class="range-val" id="inset-left-val">3</span>
+          </div>
+        </div>
+        <div>
+          <label>Right %</label>
+          <div class="range-row">
+            <input type="range" id="inset-right" min="0" max="40" value="3" oninput="renderOverlay()">
+            <span class="range-val" id="inset-right-val">3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Lead Thumbnails</div>
+      <div id="lead-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Export</div>
+      <button class="btn btn-success" onclick="downloadAll()">⬇ Download All as ZIP</button>
+      <button class="btn btn-warn" onclick="downloadPdf()">📄 Download as PDF sheet</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────
+let sourceImage = null;          // HTMLImageElement
+let sourceCanvas = null;         // off-screen full-res canvas
+let sourceCtx = null;
+let displayScale = 1;            // sourceCanvas → displayCanvas
+
+let gridCols = [];   // x fractions within crop rect, length = ncols+1
+let gridRows = [];   // y fractions within crop rect, length = nrows+1
+let hasRhythm = true;
+let rhythmFraction = 0.2;        // fraction of crop height for rhythm strip
+
+// Lead order per layout
+const LAYOUTS = {
+  standard_4x3: {
+    cols: 4, rows: 3,
+    labels: [
+      ['I',   'aVR', 'V1', 'V4'],
+      ['II',  'aVL', 'V2', 'V5'],
+      ['III', 'aVF', 'V3', 'V6'],
+    ],
+    rhythm: 'II',
+  },
+  cabrera_4x3: {
+    cols: 4, rows: 3,
+    labels: [
+      ['aVL', 'I',   'V1', 'V4'],
+      ['-aVR','II',  'V2', 'V5'],
+      ['III', 'aVF', 'V3', 'V6'],
+    ],
+    rhythm: 'II',
+  },
+  '3x4': {
+    cols: 3, rows: 4,
+    labels: [
+      ['I',   'II',  'III'],
+      ['aVR', 'aVL', 'aVF'],
+      ['V1',  'V2',  'V3'],
+      ['V4',  'V5',  'V6'],
+    ],
+    rhythm: 'II',
+  },
+  '2x6': {
+    cols: 2, rows: 6,
+    labels: [
+      ['I',  'V1'],
+      ['II', 'V2'],
+      ['III','V3'],
+      ['aVR','V4'],
+      ['aVL','V5'],
+      ['aVF','V6'],
+    ],
+    rhythm: null,
+  },
+  manual: {
+    cols: 4, rows: 3,
+    labels: [
+      ['I',   'aVR', 'V1', 'V4'],
+      ['II',  'aVL', 'V2', 'V5'],
+      ['III', 'aVF', 'V3', 'V6'],
+    ],
+    rhythm: 'II',
+  },
+};
+
+let currentLayout = 'standard_4x3';
+let extraPad = 4;
+
+// ─────────────────────────────────────────────────────
+// Drop zone / file input
+// ─────────────────────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) loadFile(e.target.files[0]);
+});
+
+document.getElementById('sensitivity').addEventListener('input', function() {
+  document.getElementById('sens-val').value = this.value;
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      sourceImage = img;
+      setupCanvases();
+      applyLayout();
+      document.getElementById('main-layout').classList.add('visible');
+      setStatus('Image loaded — adjust insets then click Auto-Detect Grid or use the default layout.', 'ok');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ─────────────────────────────────────────────────────
+// Canvas setup
+// ─────────────────────────────────────────────────────
+function setupCanvases() {
+  const DISPLAY_MAX = 900;
+  const { naturalWidth: w, naturalHeight: h } = sourceImage;
+
+  // Off-screen full-res
+  sourceCanvas = document.createElement('canvas');
+  sourceCanvas.width = w;
+  sourceCanvas.height = h;
+  sourceCtx = sourceCanvas.getContext('2d');
+  sourceCtx.drawImage(sourceImage, 0, 0);
+
+  // Display canvas
+  displayScale = Math.min(1, DISPLAY_MAX / Math.max(w, h));
+  const dc = document.getElementById('display-canvas');
+  dc.width  = Math.round(w * displayScale);
+  dc.height = Math.round(h * displayScale);
+  dc.getContext('2d').drawImage(sourceImage, 0, 0, dc.width, dc.height);
+
+  const oc = document.getElementById('overlay-canvas');
+  oc.width  = dc.width;
+  oc.height = dc.height;
+}
+
+// ─────────────────────────────────────────────────────
+// Layout
+// ─────────────────────────────────────────────────────
+function applyLayout() {
+  currentLayout = document.getElementById('layout-select').value;
+  const def = LAYOUTS[currentLayout];
+  const n = def.cols;
+  const m = def.rows;
+  gridCols = Array.from({length: n+1}, (_,i) => i/n);
+  gridRows = Array.from({length: m+1}, (_,i) => i/m);
+  hasRhythm = def.rhythm !== null;
+  renderOverlay();
+  sliceLeads();
+}
+
+// ─────────────────────────────────────────────────────
+// Inset helpers
+// ─────────────────────────────────────────────────────
+function getInsets() {
+  const top   = parseInt(document.getElementById('inset-top').value)   / 100;
+  const bot   = parseInt(document.getElementById('inset-bot').value)   / 100;
+  const left  = parseInt(document.getElementById('inset-left').value)  / 100;
+  const right = parseInt(document.getElementById('inset-right').value) / 100;
+  document.getElementById('inset-top-val').textContent   = document.getElementById('inset-top').value;
+  document.getElementById('inset-bot-val').textContent   = document.getElementById('inset-bot').value;
+  document.getElementById('inset-left-val').textContent  = document.getElementById('inset-left').value;
+  document.getElementById('inset-right-val').textContent = document.getElementById('inset-right').value;
+  return { top, bot, left, right };
+}
+
+function getCropRect() {
+  if (!sourceCanvas) return null;
+  const ins = getInsets();
+  const W = sourceCanvas.width, H = sourceCanvas.height;
+  const x0 = Math.round(ins.left * W);
+  const y0 = Math.round(ins.top  * H);
+  const x1 = Math.round((1 - ins.right)  * W);
+  const y1 = Math.round((1 - ins.bot)    * H);
+  return { x0, y0, x1, y1, w: x1-x0, h: y1-y0 };
+}
+
+// ─────────────────────────────────────────────────────
+// Overlay renderer
+// ─────────────────────────────────────────────────────
+function renderOverlay() {
+  if (!sourceCanvas) return;
+  const oc = document.getElementById('overlay-canvas');
+  const ctx = oc.getContext('2d');
+  ctx.clearRect(0, 0, oc.width, oc.height);
+
+  const cr = getCropRect();
+  const ds = displayScale;
+  const cx0 = cr.x0 * ds, cy0 = cr.y0 * ds;
+  const cw  = cr.w  * ds, ch  = cr.h  * ds;
+
+  const def = LAYOUTS[currentLayout];
+
+  // ── Background shade outside crop
+  ctx.fillStyle = 'rgba(0,0,0,.45)';
+  ctx.fillRect(0, 0, oc.width, oc.height);
+  ctx.clearRect(cx0, cy0, cw, ch);
+
+  // ── Grid lines inside crop
+  ctx.strokeStyle = 'rgba(56,189,248,.7)';
+  ctx.lineWidth = 1.5;
+
+  // Body rows (excluding rhythm strip)
+  const bodyFrac = hasRhythm ? (1 - rhythmFraction) : 1;
+  const bodyH = ch * bodyFrac;
+
+  gridRows.forEach(fr => {
+    const y = cy0 + fr * bodyH;
+    ctx.beginPath(); ctx.moveTo(cx0, y); ctx.lineTo(cx0 + cw, y); ctx.stroke();
+  });
+
+  gridCols.forEach(fc => {
+    const x = cx0 + fc * cw;
+    ctx.beginPath(); ctx.moveTo(x, cy0); ctx.lineTo(x, cy0 + bodyH); ctx.stroke();
+  });
+
+  // Rhythm strip
+  if (hasRhythm) {
+    const ry = cy0 + bodyH;
+    const ry2 = cy0 + ch;
+    ctx.strokeStyle = 'rgba(251,191,36,.7)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(cx0, ry, cw, ry2 - ry);
+  }
+
+  // ── Lead labels
+  ctx.font = 'bold 11px system-ui, sans-serif';
+  ctx.fillStyle = '#38bdf8';
+  ctx.textBaseline = 'top';
+
+  const rowH = bodyH / def.rows;
+  def.labels.forEach((row, ri) => {
+    const colW = cw / def.cols;
+    row.forEach((label, ci) => {
+      const lx = cx0 + ci * colW + 4;
+      const ly = cy0 + ri * rowH + 3;
+      ctx.fillText(label, lx, ly);
+    });
+  });
+
+  if (hasRhythm) {
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillText(`Rhythm: ${def.rhythm}`, cx0 + 4, cy0 + bodyH + 3);
+  }
+
+  sliceLeads();
+}
+
+// ─────────────────────────────────────────────────────
+// Auto-detect grid lines
+// ─────────────────────────────────────────────────────
+function autoDetect() {
+  if (!sourceCanvas) return;
+  setStatus('Detecting grid...', '');
+
+  const cr = getCropRect();
+  if (!cr || cr.w < 10 || cr.h < 10) {
+    setStatus('Invalid crop rect — adjust insets first.', 'err');
+    return;
+  }
+
+  const sensitivity = parseInt(document.getElementById('sensitivity').value);
+  const W = cr.w, H = cr.h;
+
+  // Sample from source canvas at crop region
+  const imgData = sourceCtx.getImageData(cr.x0, cr.y0, W, H);
+  const pixels = imgData.data;
+
+  // Convert to grayscale row-sums and col-sums
+  // (dark pixels = low value; grid lines are often dark)
+  const rowDark = new Float32Array(H);
+  const colDark = new Float32Array(W);
+
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const idx = (y * W + x) * 4;
+      const lum = (pixels[idx] * 0.299 + pixels[idx+1] * 0.587 + pixels[idx+2] * 0.114);
+      const dark = 255 - lum;  // invert: dark pixels → high value
+      rowDark[y] += dark;
+      colDark[x] += dark;
+    }
+    rowDark[y] /= W;
+  }
+  for (let x = 0; x < W; x++) colDark[x] /= H;
+
+  const def = LAYOUTS[currentLayout === 'manual' ? 'standard_4x3' : currentLayout];
+  const nCols = def.cols, nRows = def.rows;
+
+  // Try to find nCols-1 and nRows-1 internal dividers
+  // Strategy: find local maxima in smoothed dark profile
+  gridCols = detectDividers(colDark, W, nCols, sensitivity);
+  const bodyFrac = hasRhythm ? (1 - rhythmFraction) : 1;
+  // Detect rows only within the body section
+  const bodyH = Math.round(H * bodyFrac);
+  const bodyRowDark = rowDark.slice(0, bodyH);
+  gridRows = detectDividers(bodyRowDark, bodyH, nRows, sensitivity);
+
+  renderOverlay();
+  setStatus(`Grid detected: ${nCols} cols × ${nRows} rows${hasRhythm ? ' + rhythm strip' : ''}`, 'ok');
+}
+
+/**
+ * Given a 1-D profile of darkness values, find `n` evenly distributed
+ * dividers. Falls back to equal spacing if peak detection fails.
+ * Returns array of n+1 fractions [0, f1, f2, ..., 1].
+ */
+function detectDividers(profile, length, n, sensitivity) {
+  if (n <= 0) return [0, 1];
+
+  // Smooth the profile
+  const smooth = gaussianSmooth(profile, 6);
+
+  // Find `n-1` peaks (internal dividers)
+  const numDividers = n - 1;
+  if (numDividers === 0) return [0, 1];
+
+  // Divide into n bands, find max within each band
+  const bandSize = length / n;
+  const dividers = [0];
+
+  for (let i = 1; i < n; i++) {
+    // Look in the region around where the divider should be
+    const expected = (i / n) * length;
+    const searchHalf = bandSize * 0.35 * (sensitivity / 5);
+    const lo = Math.max(1, Math.round(expected - searchHalf));
+    const hi = Math.min(length - 2, Math.round(expected + searchHalf));
+
+    let bestX = Math.round(expected);
+    let bestV = -Infinity;
+
+    for (let x = lo; x <= hi; x++) {
+      const v = smooth[x];
+      if (v > bestV) { bestV = v; bestX = x; }
+    }
+
+    // Only snap to detected peak if it's significantly darker than surroundings
+    const baseline = (smooth[lo] + smooth[hi]) / 2;
+    const peak = smooth[bestX];
+    if (peak > baseline * 1.1) {
+      dividers.push(bestX / length);
+    } else {
+      dividers.push(i / n);  // fallback to equal spacing
+    }
+  }
+  dividers.push(1);
+  return dividers;
+}
+
+function gaussianSmooth(arr, radius) {
+  const out = new Float32Array(arr.length);
+  const sigma = radius / 2;
+  const kernel = [];
+  for (let k = -radius; k <= radius; k++) {
+    kernel.push(Math.exp(-(k*k) / (2*sigma*sigma)));
+  }
+  const ksum = kernel.reduce((a,b) => a+b, 0);
+
+  for (let i = 0; i < arr.length; i++) {
+    let s = 0;
+    for (let k = -radius; k <= radius; k++) {
+      const j = Math.max(0, Math.min(arr.length-1, i+k));
+      s += arr[j] * kernel[k + radius];
+    }
+    out[i] = s / ksum;
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────
+// Lead slicer
+// ─────────────────────────────────────────────────────
+function updatePad(el) {
+  extraPad = parseInt(el.value);
+  document.getElementById('pad-val').textContent = extraPad;
+  sliceLeads();
+}
+
+function sliceLeads() {
+  if (!sourceCanvas) return;
+  const def = LAYOUTS[currentLayout === 'manual' ? 'standard_4x3' : currentLayout];
+  const cr = getCropRect();
+  const pad = extraPad;
+
+  const bodyFrac = hasRhythm ? (1 - rhythmFraction) : 1;
+  const bodyH = cr.h * bodyFrac;
+
+  // Build lead cell definitions
+  const cells = [];
+  def.labels.forEach((row, ri) => {
+    row.forEach((label, ci) => {
+      const x0 = cr.x0 + Math.round(gridCols[ci] * cr.w) + pad;
+      const y0 = cr.y0 + Math.round(gridRows[ri] * bodyH) + pad;
+      const x1 = cr.x0 + Math.round(gridCols[ci+1] * cr.w) - pad;
+      const y1 = cr.y0 + Math.round(gridRows[ri+1] * bodyH) - pad;
+      cells.push({ label, x0, y0, w: x1-x0, h: y1-y0 });
+    });
+  });
+
+  // Rhythm strip
+  if (hasRhythm) {
+    const ry0 = cr.y0 + Math.round(bodyH) + pad;
+    const ry1 = cr.y0 + cr.h - pad;
+    cells.push({ label: `Rhythm (${def.rhythm})`, isRhythm: true,
+      x0: cr.x0 + pad, y0: ry0, w: cr.w - pad*2, h: ry1 - ry0 });
+  }
+
+  renderLeadThumbs(cells);
+  window._leadCells = cells;
+}
+
+function cropCell(cell) {
+  const tmp = document.createElement('canvas');
+  tmp.width  = Math.max(1, cell.w);
+  tmp.height = Math.max(1, cell.h);
+  const ctx = tmp.getContext('2d');
+  ctx.drawImage(sourceCanvas, cell.x0, cell.y0, cell.w, cell.h, 0, 0, cell.w, cell.h);
+  return tmp;
+}
+
+function renderLeadThumbs(cells) {
+  const grid = document.getElementById('lead-grid');
+  grid.innerHTML = '';
+
+  cells.forEach(cell => {
+    const div = document.createElement('div');
+    div.className = 'lead-thumb' + (cell.isRhythm ? ' rhythm-thumb' : '');
+    if (cell.isRhythm) div.id = 'rhythm-thumb';
+
+    const name = document.createElement('div');
+    name.className = 'lead-name';
+    name.textContent = cell.label;
+    div.appendChild(name);
+
+    const thumb = cropCell(cell);
+    const tc = document.createElement('canvas');
+    tc.height = cell.isRhythm ? 36 : 50;
+    tc.width  = Math.round(cell.isRhythm ? (tc.height * cell.w / Math.max(1,cell.h)) : (tc.height * cell.w / Math.max(1,cell.h)));
+
+    const ctx = tc.getContext('2d');
+    ctx.drawImage(thumb, 0, 0, tc.width, tc.height);
+    div.appendChild(tc);
+
+    div.title = `Click to download ${cell.label}`;
+    div.addEventListener('click', () => downloadLead(cell));
+
+    grid.appendChild(div);
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Download helpers
+// ─────────────────────────────────────────────────────
+function sanitize(s) { return s.replace(/[^a-zA-Z0-9+\-]/g, '_'); }
+
+function downloadLead(cell) {
+  const c = cropCell(cell);
+  c.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ecg_lead_${sanitize(cell.label)}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`Downloaded ${cell.label}`);
+  });
+}
+
+async function downloadAll() {
+  if (!window._leadCells || !window._leadCells.length) {
+    toast('No leads to download — load an image first.'); return;
+  }
+
+  // Try to use File System Access API or fall back to zip-less multi-download
+  // Build a simple ZIP manually (no external library needed)
+  setStatus('Building ZIP...', '');
+  const blobs = [];
+  for (const cell of window._leadCells) {
+    const c = cropCell(cell);
+    const blob = await new Promise(resolve => c.toBlob(resolve, 'image/png'));
+    blobs.push({ name: `ecg_lead_${sanitize(cell.label)}.png`, blob });
+  }
+
+  try {
+    const zipBytes = await buildZip(blobs);
+    const zipBlob = new Blob([zipBytes], { type: 'application/zip' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ecg_leads.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus(`Downloaded ${blobs.length} leads as ZIP`, 'ok');
+    toast('ZIP downloaded!');
+  } catch(e) {
+    // Fallback: download individually
+    console.warn('ZIP failed, falling back to individual downloads:', e);
+    for (const { name, blob } of blobs) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name; a.click();
+      URL.revokeObjectURL(url);
+      await new Promise(r => setTimeout(r, 150));
+    }
+    setStatus('Downloaded leads individually (ZIP unavailable)', 'ok');
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// Minimal ZIP builder (no external dependency)
+// Uses DEFLATE-0 (stored/uncompressed) for simplicity
+// ─────────────────────────────────────────────────────
+async function buildZip(files) {
+  const enc = new TextEncoder();
+  const centralDir = [];
+  const parts = [];
+  let offset = 0;
+
+  for (const { name, blob } of files) {
+    const data = new Uint8Array(await blob.arrayBuffer());
+    const nameBuf = enc.encode(name);
+    const crc = crc32(data);
+    const now = dosDateTime();
+
+    // Local file header
+    const lfh = new DataView(new ArrayBuffer(30 + nameBuf.length));
+    lfh.setUint32(0, 0x04034b50, true);   // signature
+    lfh.setUint16(4, 20, true);            // version needed
+    lfh.setUint16(6, 0, true);             // flags
+    lfh.setUint16(8, 0, true);             // compression = store
+    lfh.setUint32(10, now, true);          // mod time/date
+    lfh.setUint32(14, crc, true);          // crc32
+    lfh.setUint32(18, data.length, true);  // compressed size
+    lfh.setUint32(22, data.length, true);  // uncompressed size
+    lfh.setUint16(26, nameBuf.length, true);
+    lfh.setUint16(28, 0, true);
+    new Uint8Array(lfh.buffer).set(nameBuf, 30);
+
+    // Central directory record
+    const cdr = new DataView(new ArrayBuffer(46 + nameBuf.length));
+    cdr.setUint32(0, 0x02014b50, true);   // signature
+    cdr.setUint16(4, 20, true);            // version made by
+    cdr.setUint16(6, 20, true);            // version needed
+    cdr.setUint16(8, 0, true);             // flags
+    cdr.setUint16(10, 0, true);            // compression
+    cdr.setUint32(12, now, true);          // mod time/date
+    cdr.setUint32(16, crc, true);          // crc32
+    cdr.setUint32(20, data.length, true);  // compressed size
+    cdr.setUint32(24, data.length, true);  // uncompressed size
+    cdr.setUint16(28, nameBuf.length, true);
+    cdr.setUint16(30, 0, true);            // extra field length
+    cdr.setUint16(32, 0, true);            // comment length
+    cdr.setUint16(34, 0, true);            // disk start
+    cdr.setUint16(36, 0, true);            // internal attrs
+    cdr.setUint32(38, 0, true);            // external attrs
+    cdr.setUint32(42, offset, true);       // local header offset
+    new Uint8Array(cdr.buffer).set(nameBuf, 46);
+
+    parts.push(new Uint8Array(lfh.buffer));
+    parts.push(data);
+    centralDir.push(new Uint8Array(cdr.buffer));
+    offset += lfh.buffer.byteLength + data.length;
+  }
+
+  // End of central directory
+  const cdSize = centralDir.reduce((a,b) => a + b.length, 0);
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true);
+  eocd.setUint16(4, 0, true);
+  eocd.setUint16(6, 0, true);
+  eocd.setUint16(8, files.length, true);
+  eocd.setUint16(10, files.length, true);
+  eocd.setUint32(12, cdSize, true);
+  eocd.setUint32(16, offset, true);
+  eocd.setUint16(20, 0, true);
+
+  const allParts = [...parts, ...centralDir, new Uint8Array(eocd.buffer)];
+  const total = allParts.reduce((a,b) => a + b.length, 0);
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const p of allParts) { out.set(p, pos); pos += p.length; }
+  return out;
+}
+
+function dosDateTime() {
+  const d = new Date();
+  const date = (((d.getFullYear() - 1980) << 9) | ((d.getMonth()+1) << 5) | d.getDate()) & 0xFFFF;
+  const time = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF;
+  return (date << 16) | time;
+}
+
+// CRC-32 table
+const _crcTable = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c;
+  }
+  return t;
+})();
+
+function crc32(buf) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) crc = _crcTable[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+// ─────────────────────────────────────────────────────
+// PDF sheet export
+// ─────────────────────────────────────────────────────
+async function downloadPdf() {
+  if (!window._leadCells || !window._leadCells.length) {
+    toast('No leads — load an image first.'); return;
+  }
+  setStatus('Building PDF...', '');
+
+  // Render an HTML page with all leads on a grid and print-to-PDF
+  const cells = window._leadCells;
+  const dataUrls = [];
+  for (const cell of cells) {
+    const c = cropCell(cell);
+    dataUrls.push({ label: cell.label, url: c.toDataURL('image/png'), isRhythm: cell.isRhythm });
+  }
+
+  const leads   = dataUrls.filter(d => !d.isRhythm);
+  const rhythm  = dataUrls.find(d => d.isRhythm);
+  const def     = LAYOUTS[currentLayout === 'manual' ? 'standard_4x3' : currentLayout];
+
+  const cellHtml = leads.map(d => `
+    <div class="cell">
+      <div class="cell-label">${d.label}</div>
+      <img src="${d.url}">
+    </div>`).join('');
+
+  const rhythmHtml = rhythm ? `
+    <div class="rhythm-row">
+      <div class="cell-label">${rhythm.label}</div>
+      <img src="${rhythm.url}">
+    </div>` : '';
+
+  const ncols = def.cols;
+  const html = `<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<title>ECG Lead Sheet</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  body { font-family: Arial, sans-serif; background: #fff; color: #000; margin: 0; padding: 0; }
+  h2 { text-align: center; font-size: 13pt; margin: 0 0 6px; }
+  .grid { display: grid; grid-template-columns: repeat(${ncols}, 1fr); gap: 4px; }
+  .cell { border: 1px solid #666; padding: 3px; }
+  .cell-label { font-size: 8pt; font-weight: bold; color: #222; margin-bottom: 2px; }
+  .cell img { width: 100%; display: block; }
+  .rhythm-row { border: 1px solid #666; padding: 3px; margin-top: 4px; }
+  .rhythm-row img { width: 100%; display: block; }
+  @media print { body { -webkit-print-color-adjust: exact; } }
+</style>
+</head><body>
+<h2>12-Lead ECG — Extracted Leads</h2>
+<div class="grid">${cellHtml}</div>
+${rhythmHtml}
+<script>window.onload = () => { window.print(); }<\/script>
+</body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) {
+    // Fallback if popup blocked: download HTML
+    const a = document.createElement('a'); a.href = url; a.download = 'ecg_leads.html'; a.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  setStatus('PDF sheet opened — use browser Print → Save as PDF', 'ok');
+}
+
+// ─────────────────────────────────────────────────────
+// UI helpers
+// ─────────────────────────────────────────────────────
+function setStatus(msg, cls) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = cls || '';
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ─────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────
+// Wire up inset sliders to update val labels live
+['inset-top','inset-bot','inset-left','inset-right'].forEach(id => {
+  const el = document.getElementById(id);
+  const valEl = document.getElementById(id + '-val');
+  el.addEventListener('input', () => { valEl.textContent = el.value; renderOverlay(); });
+});
+</script>
+</body>
+</html>
