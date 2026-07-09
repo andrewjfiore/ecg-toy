@@ -1,0 +1,491 @@
+[
+  {
+    "id": "ecg-001",
+    "diagnosis": "Normal sinus rhythm",
+    "category": "rhythm",
+    "clinical": "24-year-old healthy volunteer for a pre-participation sports physical. No symptoms.",
+    "rate": 72,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {},
+    "territory": null,
+    "answer": "Normal sinus rhythm",
+    "teaching": "Regular rhythm 60-100/min, an upright P before every QRS (upright in I and II, inverted in aVR), constant PR 120-200 ms, narrow QRS under 120 ms, and normal R-wave progression across the precordium. Establish the normal before you can call anything abnormal."
+  },
+  {
+    "id": "ecg-002",
+    "diagnosis": "Sinus bradycardia",
+    "category": "rhythm",
+    "clinical": "Conditioned 30-year-old endurance athlete, resting heart rate in the 40s, asymptomatic.",
+    "rate": 46,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {},
+    "territory": null,
+    "answer": "Sinus bradycardia",
+    "teaching": "Sinus mechanism with a rate under 60/min. Normal P-QRS-T; each P conducts. Common in athletes, sleep, high vagal tone, and with beta-blockers or nondihydropyridine calcium-channel blockers. Treat only if symptomatic."
+  },
+  {
+    "id": "ecg-003",
+    "diagnosis": "Sinus tachycardia",
+    "category": "rhythm",
+    "clinical": "28-year-old with fever and dehydration from gastroenteritis. Rate 122, regular.",
+    "rate": 122,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {},
+    "territory": null,
+    "answer": "Sinus tachycardia",
+    "teaching": "Sinus mechanism above 100/min with a normal P before every QRS. It is a response, not a primary arrhythmia, so look for the cause: fever, pain, hypovolemia, anemia, hyperthyroidism, PE, sympathomimetics. Treat the trigger."
+  },
+  {
+    "id": "ecg-004",
+    "diagnosis": "Atrial fibrillation",
+    "category": "rhythm",
+    "clinical": "74-year-old with palpitations and an irregular pulse. Long-standing hypertension.",
+    "rate": 96,
+    "rhythm": "afib",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "no P waves; irregular RR",
+      "V1": "fibrillatory baseline"
+    },
+    "territory": null,
+    "answer": "Atrial fibrillation",
+    "teaching": "Irregularly irregular RR intervals with no discrete P waves and a fibrillatory baseline (best seen in V1 and II). The commonest sustained arrhythmia. Manage rate versus rhythm control and, above all, stroke prevention guided by CHA2DS2-VASc."
+  },
+  {
+    "id": "ecg-005",
+    "diagnosis": "Atrial flutter",
+    "category": "rhythm",
+    "clinical": "68-year-old with palpitations; ventricular rate almost exactly 75, regular.",
+    "rate": 75,
+    "rhythm": "flutter",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "sawtooth flutter waves",
+      "III": "sawtooth flutter waves",
+      "aVF": "sawtooth flutter waves"
+    },
+    "territory": null,
+    "answer": "Atrial flutter",
+    "teaching": "Regular sawtooth flutter (F) waves at about 300/min, classically negative in II, III and aVF from a counterclockwise right-atrial macro-reentrant circuit. Ventricular rate is a fraction of 300 (2:1 gives 150, 4:1 gives 75). Definitive therapy is cavotricuspid isthmus ablation."
+  },
+  {
+    "id": "ecg-006",
+    "diagnosis": "Supraventricular tachycardia (AVNRT)",
+    "category": "rhythm",
+    "clinical": "22-year-old with abrupt-onset palpitations, rate 185, narrow and regular.",
+    "rate": 185,
+    "rhythm": "svt",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "narrow regular tachycardia, no visible P"
+    },
+    "territory": null,
+    "answer": "Supraventricular tachycardia (AVNRT)",
+    "teaching": "Regular narrow-complex tachycardia around 150-250/min with P waves buried in or just after the QRS. Usually AV-nodal reentry. Try vagal maneuvers, then IV adenosine to transiently block the AV node."
+  },
+  {
+    "id": "ecg-007",
+    "diagnosis": "Ventricular tachycardia",
+    "category": "rhythm",
+    "clinical": "63-year-old with prior MI, palpitations and lightheadedness. Wide, regular, rate 165.",
+    "rate": 165,
+    "rhythm": "vt",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "wide monomorphic tachycardia",
+      "V1": "wide QRS"
+    },
+    "territory": null,
+    "answer": "Ventricular tachycardia",
+    "teaching": "Regular wide-complex tachycardia (QRS over 120 ms) at over 100/min. In anyone with structural heart disease assume VT until proven otherwise. Unstable means synchronized cardioversion; a pulseless patient gets defibrillation."
+  },
+  {
+    "id": "ecg-008",
+    "diagnosis": "Ventricular fibrillation",
+    "category": "rhythm",
+    "clinical": "Collapsed 60-year-old, no pulse. Monitor shows chaotic activity.",
+    "rate": 0,
+    "rhythm": "vfib",
+    "axis": null,
+    "keyLeads": {
+      "II": "chaotic, no organized QRS"
+    },
+    "territory": null,
+    "answer": "Ventricular fibrillation",
+    "teaching": "Chaotic, irregular deflections with no identifiable P, QRS or T. It is a non-perfusing rhythm. Immediate defibrillation and high-quality CPR are the only effective treatments."
+  },
+  {
+    "id": "ecg-009",
+    "diagnosis": "First-degree AV block",
+    "category": "conduction",
+    "clinical": "Routine ECG, asymptomatic 55-year-old. PR interval measures 260 ms.",
+    "rate": 68,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "PR interval > 200 ms, every P conducts"
+    },
+    "territory": null,
+    "answer": "First-degree AV block",
+    "teaching": "PR interval fixed and prolonged beyond 200 ms with 1:1 conduction (every P is followed by a QRS). Usually benign and needs no treatment on its own."
+  },
+  {
+    "id": "ecg-010",
+    "diagnosis": "Mobitz I (Wenckebach)",
+    "category": "conduction",
+    "clinical": "Inferior-MI patient on telemetry; grouped beating noted.",
+    "rate": 60,
+    "rhythm": "wenckebach",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "progressive PR lengthening, then a dropped QRS"
+    },
+    "territory": null,
+    "answer": "Mobitz I (Wenckebach)",
+    "teaching": "Progressive PR prolongation until a P wave fails to conduct and a QRS is dropped, producing group beating and a lengthening-then-pause pattern. Block is in the AV node, usually benign; observe or treat the cause."
+  },
+  {
+    "id": "ecg-011",
+    "diagnosis": "Mobitz II",
+    "category": "conduction",
+    "clinical": "Syncope in a 70-year-old; constant PR with intermittent dropped beats.",
+    "rate": 50,
+    "rhythm": "mobitz2",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "constant PR, sudden non-conducted P (dropped QRS)"
+    },
+    "territory": null,
+    "answer": "Mobitz II",
+    "teaching": "Fixed PR interval with sudden failure to conduct a P wave and no preceding PR lengthening. Block is infranodal (His-Purkinje), so it is unstable and prone to progress to complete block. It warrants a pacemaker."
+  },
+  {
+    "id": "ecg-012",
+    "diagnosis": "Third-degree (complete) AV block",
+    "category": "conduction",
+    "clinical": "78-year-old with fatigue and near-syncope; atrial and ventricular rates differ.",
+    "rate": 38,
+    "rhythm": "chb",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "AV dissociation: P waves march through independent QRS"
+    },
+    "territory": null,
+    "answer": "Third-degree (complete) AV block",
+    "teaching": "Complete AV dissociation: the atria (P waves) and ventricles (escape QRS) beat independently, with the atrial rate faster than the ventricular. PR intervals are random. Treat with a permanent pacemaker."
+  },
+  {
+    "id": "ecg-013",
+    "diagnosis": "Right bundle branch block (RBBB)",
+    "category": "conduction",
+    "clinical": "Incidental finding on a pre-operative ECG in a 61-year-old.",
+    "rate": 72,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "V1": "rSR' (M-shaped) wide QRS",
+      "V6": "wide terminal S wave",
+      "I": "wide terminal S wave"
+    },
+    "territory": null,
+    "answer": "Right bundle branch block (RBBB)",
+    "teaching": "QRS over 120 ms with an rSR' (M-shaped) complex in V1-V2 and a wide slurred S wave in I and V6, plus discordant T-wave inversion in the right precordial leads. Late right-ventricular activation. Can be a normal variant."
+  },
+  {
+    "id": "ecg-014",
+    "diagnosis": "Left bundle branch block (LBBB)",
+    "category": "conduction",
+    "clinical": "69-year-old with heart failure; broad QRS on ECG.",
+    "rate": 74,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "V1": "broad negative QS complex",
+      "V6": "broad notched (M-shaped) R wave",
+      "I": "broad monophasic R, no septal q"
+    },
+    "territory": null,
+    "answer": "Left bundle branch block (LBBB)",
+    "teaching": "QRS over 120 ms with a broad, notched, monophasic R in I, aVL, V5-V6 and a deep wide QS in V1-V3, with no septal q waves. Appropriate discordance means the ST-T points opposite the main QRS. New LBBB with ischemic symptoms is an ACS equivalent, and LBBB invalidates ordinary ST-based MI reading (use Sgarbossa)."
+  },
+  {
+    "id": "ecg-015",
+    "diagnosis": "Wolff-Parkinson-White (WPW)",
+    "category": "conduction",
+    "clinical": "19-year-old with intermittent palpitations; short PR and slurred QRS upstroke.",
+    "rate": 74,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "short PR (<120 ms), delta wave",
+      "V4": "delta wave (slurred upstroke)"
+    },
+    "territory": null,
+    "answer": "Wolff-Parkinson-White (WPW)",
+    "teaching": "Short PR under 120 ms, a delta wave (slurred initial QRS upstroke) and a widened QRS from pre-excitation through an accessory pathway that bypasses the AV node. Risk of AV re-entrant tachycardia; in pre-excited AFib, avoid AV-nodal blockers."
+  },
+  {
+    "id": "ecg-016",
+    "diagnosis": "Acute anterior STEMI (LAD)",
+    "category": "ischemia",
+    "clinical": "58-year-old man, crushing substernal chest pain for 40 minutes, diaphoretic.",
+    "rate": 88,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "V1": "ST elevation",
+      "V2": "ST elevation",
+      "V3": "ST elevation",
+      "V4": "ST elevation"
+    },
+    "territory": "LAD / anteroseptal",
+    "answer": "Acute anterior STEMI (LAD)",
+    "teaching": "Convex (\"tombstone\") ST elevation across the precordial leads V1-V4 localizes to the LAD and the anteroseptal wall. This is the highest-risk territory. Reciprocal inferior ST depression may appear. Immediate reperfusion: primary PCI, or fibrinolysis if PCI is unavailable."
+  },
+  {
+    "id": "ecg-017",
+    "diagnosis": "Acute inferior STEMI (RCA)",
+    "category": "ischemia",
+    "clinical": "66-year-old with chest pain, nausea and bradycardia; hypotensive after nitroglycerin.",
+    "rate": 58,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "ST elevation",
+      "III": "ST elevation",
+      "aVF": "ST elevation",
+      "I": "reciprocal ST depression",
+      "aVL": "reciprocal ST depression"
+    },
+    "territory": "RCA / inferior",
+    "answer": "Acute inferior STEMI (RCA)",
+    "teaching": "ST elevation in II, III and aVF with reciprocal ST depression in I and aVL localizes to the inferior wall, usually an RCA occlusion (III elevation greater than II favors RCA). Get right-sided leads: RV involvement makes the patient preload-dependent, so avoid nitrates. Bradycardia and AV block are common."
+  },
+  {
+    "id": "ecg-018",
+    "diagnosis": "Acute lateral STEMI (LCx)",
+    "category": "ischemia",
+    "clinical": "61-year-old with chest pain radiating to the left arm.",
+    "rate": 84,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "I": "ST elevation",
+      "aVL": "ST elevation",
+      "V5": "ST elevation",
+      "V6": "ST elevation",
+      "III": "reciprocal ST depression"
+    },
+    "territory": "LCx / lateral",
+    "answer": "Acute lateral STEMI (LCx)",
+    "teaching": "ST elevation in the lateral leads I, aVL, V5 and V6 points to the left circumflex or a diagonal branch, with reciprocal ST depression inferiorly. High lateral (I, aVL) elevation with inferior reciprocal change is a classic pairing."
+  },
+  {
+    "id": "ecg-019",
+    "diagnosis": "Posterior MI",
+    "category": "ischemia",
+    "clinical": "60-year-old with chest pain; tall R waves and ST depression in V1-V3.",
+    "rate": 80,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "V1": "ST depression + tall R",
+      "V2": "ST depression + tall R",
+      "V3": "ST depression"
+    },
+    "territory": "RCA/LCx / posterior",
+    "answer": "Posterior MI",
+    "teaching": "A posterior infarct is a mirror image in the anterior leads: horizontal ST depression with tall broad R waves and upright T waves in V1-V3 (R/S over 1 in V2). Confirm with posterior leads V7-V9, which show the true ST elevation. Often accompanies an inferior or lateral STEMI."
+  },
+  {
+    "id": "ecg-020",
+    "diagnosis": "NSTEMI / ischemia (ST depression, TWI)",
+    "category": "ischemia",
+    "clinical": "70-year-old with exertional chest pain at rest; troponin rising, no ST elevation.",
+    "rate": 92,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "V4": "ST depression",
+      "V5": "ST depression + T inversion",
+      "V6": "ST depression + T inversion",
+      "I": "T inversion",
+      "aVL": "T inversion"
+    },
+    "territory": "subendocardial",
+    "answer": "NSTEMI / ischemia (ST depression, TWI)",
+    "teaching": "Horizontal or downsloping ST depression and symmetric T-wave inversion without ST elevation indicate subendocardial ischemia. With a positive troponin this is NSTEMI. Management is antithrombotic therapy and risk-stratified (often early) invasive angiography, not immediate lytics."
+  },
+  {
+    "id": "ecg-021",
+    "diagnosis": "Left ventricular hypertrophy (LVH)",
+    "category": "chamber",
+    "clinical": "64-year-old with long-standing hypertension; loud A2 and an S4.",
+    "rate": 74,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "V1": "deep S wave",
+      "V2": "deep S wave",
+      "V5": "tall R wave + strain",
+      "V6": "tall R wave + strain"
+    },
+    "territory": null,
+    "answer": "Left ventricular hypertrophy (LVH)",
+    "teaching": "Voltage criteria such as Sokolow-Lyon (S in V1 plus R in V5 or V6 over 35 mm) with a lateral \"strain\" pattern of downsloping ST depression and asymmetric T inversion in I, aVL, V5-V6. Left axis is common. Causes: hypertension and aortic stenosis."
+  },
+  {
+    "id": "ecg-022",
+    "diagnosis": "Right ventricular hypertrophy (RVH)",
+    "category": "chamber",
+    "clinical": "52-year-old with COPD and pulmonary hypertension; right axis deviation.",
+    "rate": 86,
+    "rhythm": "sinus",
+    "axis": "right",
+    "keyLeads": {
+      "V1": "tall R (R>S) + strain",
+      "V6": "deep S wave",
+      "II": "tall peaked P (P pulmonale)"
+    },
+    "territory": null,
+    "answer": "Right ventricular hypertrophy (RVH)",
+    "teaching": "Right axis deviation with a dominant R wave in V1 (R/S over 1) and deep S waves in V5-V6, often with right-precordial strain (TWI V1-V3) and peaked P pulmonale. Causes: pulmonary hypertension, chronic lung disease, and pulmonic stenosis."
+  },
+  {
+    "id": "ecg-023",
+    "diagnosis": "Hyperkalemia",
+    "category": "metabolic",
+    "clinical": "Dialysis patient who missed a session; potassium 7.4 mEq/L. Tall peaked T waves.",
+    "rate": 70,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "tall peaked (tented) T waves",
+      "V3": "peaked T waves",
+      "V4": "peaked T waves"
+    },
+    "territory": null,
+    "answer": "Hyperkalemia",
+    "teaching": "Sequence with rising K+: tall narrow peaked (tented) T waves first, then PR prolongation and P-wave flattening, then QRS widening, and finally a sine-wave pattern preceding arrest. Treat with IV calcium (membrane stabilization), then insulin plus glucose and albuterol to shift K+, then dialysis or other removal."
+  },
+  {
+    "id": "ecg-024",
+    "diagnosis": "Hypokalemia",
+    "category": "metabolic",
+    "clinical": "Patient on high-dose loop diuretics with weakness; potassium 2.6 mEq/L.",
+    "rate": 76,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "U waves, flattened T",
+      "V3": "prominent U wave",
+      "V4": "prominent U wave, ST depression"
+    },
+    "territory": null,
+    "answer": "Hypokalemia",
+    "teaching": "Flattened T waves, ST depression and prominent U waves (a positive deflection after the T), which can fuse into an apparent long QT. Predisposes to torsades. Replace potassium and check magnesium, since hypokalemia is refractory until the magnesium is corrected."
+  },
+  {
+    "id": "ecg-025",
+    "diagnosis": "Acute pericarditis",
+    "category": "other",
+    "clinical": "32-year-old with sharp pleuritic chest pain, better leaning forward, after a viral illness.",
+    "rate": 96,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "diffuse concave ST elevation, PR depression",
+      "I": "concave ST elevation",
+      "V5": "concave ST elevation",
+      "aVR": "PR elevation, ST depression"
+    },
+    "territory": null,
+    "answer": "Acute pericarditis",
+    "teaching": "Diffuse, concave-upward ST elevation across multiple territories with PR-segment depression, and reciprocal PR elevation with ST depression in aVR. The widespread distribution (not fitting one artery) and PR changes separate it from STEMI. Spodick sign and later T-wave inversion may follow."
+  },
+  {
+    "id": "ecg-026",
+    "diagnosis": "Brugada syndrome (type 1)",
+    "category": "other",
+    "clinical": "35-year-old man, family history of sudden death; coved ST elevation in V1-V2.",
+    "rate": 72,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "V1": "coved ST elevation, T inversion",
+      "V2": "coved ST elevation, T inversion"
+    },
+    "territory": null,
+    "answer": "Brugada syndrome (type 1)",
+    "teaching": "Type 1 pattern: a coved (downsloping) ST elevation of at least 2 mm descending into an inverted T wave in the right precordial leads V1-V2, from a sodium-channelopathy. Risk of polymorphic VT and sudden cardiac death; an ICD is the only proven protection."
+  },
+  {
+    "id": "ecg-027",
+    "diagnosis": "Pulmonary embolism (right heart strain)",
+    "category": "other",
+    "clinical": "54-year-old post-op with sudden dyspnea and pleuritic pain; sinus tachycardia.",
+    "rate": 112,
+    "rhythm": "sinus",
+    "axis": "right",
+    "keyLeads": {
+      "I": "S wave (S1)",
+      "III": "Q wave and T inversion (Q3T3)",
+      "V1": "T inversion (RV strain)",
+      "V2": "T inversion"
+    },
+    "territory": null,
+    "answer": "Pulmonary embolism (right heart strain)",
+    "teaching": "The most common finding is plain sinus tachycardia. The classic (but insensitive) S1Q3T3 is an S wave in I, with a Q wave and inverted T in III, from acute right-heart strain; right precordial T-wave inversion and a new incomplete RBBB may appear. Diagnose with CT angiography, not the ECG."
+  },
+  {
+    "id": "ecg-028",
+    "diagnosis": "Long QT syndrome",
+    "category": "other",
+    "clinical": "17-year-old with exertional syncope; family history of sudden death. QTc 520 ms.",
+    "rate": 68,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "II": "prolonged QT interval",
+      "V4": "prolonged QT, broad T"
+    },
+    "territory": null,
+    "answer": "Long QT syndrome",
+    "teaching": "QT prolonged for rate (QTc over 470 ms in men, over 480 ms in women), from congenital channelopathy or acquired causes (drugs, hypokalemia, hypomagnesemia, hypocalcemia). The danger is torsades de pointes. Remove offending drugs, correct electrolytes, and consider beta-blockers or an ICD."
+  },
+  {
+    "id": "ecg-029",
+    "diagnosis": "Torsades de pointes",
+    "category": "other",
+    "clinical": "Patient on QT-prolonging drugs with syncope; polymorphic wide-complex tachycardia.",
+    "rate": 240,
+    "rhythm": "torsades",
+    "axis": null,
+    "keyLeads": {
+      "II": "polymorphic VT twisting around baseline"
+    },
+    "territory": null,
+    "answer": "Torsades de pointes",
+    "teaching": "Polymorphic VT in which the QRS amplitude and axis appear to twist around the baseline, arising from a prolonged QT. Treat with IV magnesium, correct electrolytes, stop the offending drug, and increase the rate (pacing or isoproterenol); defibrillate if unstable."
+  },
+  {
+    "id": "ecg-030",
+    "diagnosis": "Digitalis effect",
+    "category": "other",
+    "clinical": "72-year-old on digoxin for rate control; scooped ST segments (not toxicity).",
+    "rate": 66,
+    "rhythm": "sinus",
+    "axis": "normal",
+    "keyLeads": {
+      "V5": "scooped (\"Salvador Dali\") ST depression",
+      "V6": "scooped ST depression",
+      "II": "sagging ST, short QT"
+    },
+    "territory": null,
+    "answer": "Digitalis effect",
+    "teaching": "Therapeutic digitalis produces a sagging, scooped ST depression (the \"Salvador Dali mustache\"), a short QT and flattened or inverted T waves, most visible in leads with tall R waves. This is a drug effect, not toxicity; toxicity instead causes arrhythmias such as atrial tachycardia with block or bidirectional VT."
+  }
+]

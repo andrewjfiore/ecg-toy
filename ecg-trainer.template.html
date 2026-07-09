@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ECG Trainer</title>
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#131a26; --panel2:#0f1520; --fg:#e8edf5; --muted:#8b97a8;
+    --border:#243043; --accent:#4f9dff; --accent2:#2563eb;
+    --good:#2fbf71; --bad:#ef4d5a; --warn:#f0a53a;
+    --ecg-paper:#fff5f6; --ecg-grid-minor:#f3c9cf; --ecg-grid-major:#e79aa4; --ecg-trace:#141414;
+    --lad:#2563eb; --lcx:#7c3aed; --rca:#ea580c;
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f5; --panel:#ffffff; --panel2:#f5f7fa; --fg:#141a22; --muted:#5b6672;
+    --border:#d3dae3; --accent:#2563eb; --accent2:#1d4ed8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px;line-height:1.45}
+  a{color:var(--accent)}
+  header{position:sticky;top:0;z-index:10;background:var(--panel);border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:16px;padding:10px 18px;flex-wrap:wrap}
+  header .brand{font-weight:800;font-size:17px;letter-spacing:.2px}
+  header .brand small{font-weight:500;color:var(--muted);font-size:12px;margin-left:6px}
+  nav{display:flex;gap:4px;margin-left:6px}
+  nav button{background:transparent;border:1px solid transparent;color:var(--muted);
+    padding:6px 12px;border-radius:8px;cursor:pointer;font-size:14px}
+  nav button.active{background:var(--panel2);color:var(--fg);border-color:var(--border)}
+  .spacer{flex:1}
+  .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;
+    padding:7px 14px;font-size:14px;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  .btn.primary:disabled{opacity:.5;cursor:not-allowed}
+  .btn.small{padding:4px 10px;font-size:13px}
+  main{max-width:1180px;margin:0 auto;padding:18px}
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .muted{color:var(--muted)}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+  select{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:14px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--panel2)}
+
+  /* ECG display */
+  .ecg-wrap{background:#0a0d13;border:1px solid var(--border);border-radius:10px;padding:8px}
+  :root[data-theme="light"] .ecg-wrap{background:#e7ebf0}
+  .ecg-12-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
+  .lead-cell{position:relative;background:var(--ecg-paper);border-radius:4px;overflow:hidden;line-height:0;
+    cursor:pointer;border:2px solid transparent}
+  .lead-cell.mark-abn{border-color:var(--bad)}
+  .lead-cell.mark-norm{border-color:var(--good)}
+  .lead-cell.terr-lad{box-shadow:inset 0 0 0 2px var(--lad)}
+  .lead-cell.terr-lcx{box-shadow:inset 0 0 0 2px var(--lcx)}
+  .lead-cell.terr-rca{box-shadow:inset 0 0 0 2px var(--rca)}
+  .lead-cell.key-correct{border-color:var(--good)}
+  .lead-cell.key-missed{border-color:var(--warn);border-style:dashed}
+  .lead-cell.key-over{border-color:var(--bad);border-style:dotted}
+  .lead-cell .badge{position:absolute;top:2px;right:3px;font-size:10px;font-weight:700;padding:1px 5px;
+    border-radius:6px;line-height:1.3;z-index:2}
+  .lead-cell .terr-badge{position:absolute;bottom:2px;right:3px;font-size:9px;font-weight:700;color:#fff;
+    padding:1px 5px;border-radius:5px;z-index:2}
+  .ecg-panel-svg{display:block;width:100%;height:auto}
+  .rhythm-cell{background:var(--ecg-paper);border-radius:4px;overflow:hidden;line-height:0;margin-top:3px}
+
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);
+    border-radius:9px;cursor:pointer;background:var(--panel2)}
+  .opt:hover{border-color:var(--accent)}
+  .opt.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .opt.correct{border-color:var(--good);background:rgba(47,191,113,.12)}
+  .opt.wrong{border-color:var(--bad);background:rgba(239,77,90,.12)}
+  .opt .k{font-weight:700;width:20px;color:var(--muted)}
+  .teach{border-left:3px solid var(--accent);padding:8px 12px;background:var(--panel2);border-radius:0 8px 8px 0}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+  .kv .k{color:var(--muted)}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border:1px solid var(--border);padding:6px 8px;text-align:left}
+  th{background:var(--panel2)}
+  .stat-num{font-size:22px;font-weight:800}
+  .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .lib-card img{width:100%;border-radius:6px;background:#fff;display:block}
+  .lib-card .cap{font-size:12px;margin-top:4px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);align-items:center}
+  .legend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+  .hidden{display:none!important}
+  .note{font-size:12px;color:var(--muted)}
+  @media (max-width:700px){ .ecg-12-grid{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">ECG Trainer <small>synthetic 12-lead practical, offline</small></div>
+  <nav>
+    <button id="nav-practice" class="active" onclick="setView('practice')">Practice</button>
+    <button id="nav-library" onclick="setView('library')">Reference library</button>
+    <button id="nav-stats" onclick="setView('stats')">Progress</button>
+  </nav>
+  <div class="spacer"></div>
+  <button class="btn small" id="themeBtn" onclick="toggleTheme()">Light mode</button>
+</header>
+<main>
+  <!-- PRACTICE -->
+  <section id="view-practice">
+    <div class="card" style="margin-bottom:14px">
+      <div class="row" style="align-items:center">
+        <div>
+          <div class="note">Drill category</div>
+          <select id="catSel" onchange="newCase()"></select>
+        </div>
+        <div>
+          <div class="note">Score this session</div>
+          <div><span class="stat-num" id="sessScore">0</span> <span class="muted">/ <span id="sessTotal">0</span></span>
+            &nbsp; <span class="pill">streak <span id="streak">0</span></span></div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn" onclick="toggleTerritories()" id="terrBtn">Show artery territories</button>
+        <button class="btn" onclick="newCase()">New case</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div style="flex:1;min-width:280px">
+          <div class="pill" id="caseCat">rhythm</div>
+          <p id="vignette" style="margin:8px 0 10px;font-size:15px"></p>
+          <div class="ecg-wrap">
+            <div class="ecg-12-grid" id="leadGrid"></div>
+            <div class="rhythm-cell" id="rhythmCell"></div>
+          </div>
+          <div class="legend" style="margin-top:8px">
+            <span>Click a lead to mark it:</span>
+            <span><span class="sw" style="background:var(--bad)"></span>abnormal</span>
+            <span><span class="sw" style="background:var(--good)"></span>normal</span>
+            <span id="terrLegend" class="hidden">
+              <span><span class="sw" style="background:var(--lad)"></span>LAD (V1-V4)</span>
+              <span><span class="sw" style="background:var(--lcx)"></span>LCx (I,aVL,V5,V6)</span>
+              <span><span class="sw" style="background:var(--rca)"></span>RCA (II,III,aVF)</span>
+            </span>
+          </div>
+        </div>
+        <div style="width:340px;max-width:100%">
+          <div class="note" style="margin-bottom:6px">What is the diagnosis?</div>
+          <div class="opts" id="opts"></div>
+          <button class="btn primary" id="submitBtn" style="margin-top:12px;width:100%" onclick="submitCase()" disabled>Submit</button>
+          <div id="result" class="hidden" style="margin-top:14px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIBRARY -->
+  <section id="view-library" class="hidden">
+    <div class="card" style="margin-bottom:14px">
+      <b>Real ECG reference library</b>
+      <p class="note" style="margin:6px 0 0">These 49 real ECGs are freely licensed images (Wikimedia Commons) kept for personal study only. They are not synthetic and not original work. The practice cases above are drawn separately from the synthetic engine.</p>
+      <div style="margin-top:8px"><select id="libFilter" onchange="renderLibrary()"></select></div>
+    </div>
+    <div class="lib-grid" id="libGrid"></div>
+  </section>
+
+  <!-- STATS -->
+  <section id="view-stats" class="hidden">
+    <div class="row" style="margin-bottom:14px">
+      <div class="card" style="flex:1"><div class="note">Cases attempted</div><div class="stat-num" id="stAttempts">0</div></div>
+      <div class="card" style="flex:1"><div class="note">Diagnosis accuracy</div><div class="stat-num" id="stAcc">-</div></div>
+      <div class="card" style="flex:1"><div class="note">Diagnoses seen</div><div class="stat-num" id="stSeen">0 / 0</div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <b>By diagnosis</b>
+      <div style="overflow-x:auto;margin-top:8px"><table id="dxTable"></table></div>
+    </div>
+    <div class="card">
+      <b>Data</b>
+      <p class="note">Progress is saved in this browser under the <code>ecg.*</code> localStorage namespace.</p>
+      <div class="row">
+        <button class="btn" onclick="exportProgress()">Export progress (JSON)</button>
+        <button class="btn" onclick="document.getElementById('importFile').click()">Import</button>
+        <input type="file" id="importFile" class="hidden" accept="application/json" onchange="importProgress(event)">
+        <button class="btn" onclick="resetProgress()">Reset progress</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="ecg-engine.js"></script>
+<script src="ecg-library-dev.js"></script>
+<!--ECG_ENGINE_TAG-->
+<!--ECG_LIBRARY_TAG-->
+<script>
+/* ============================ ECG Trainer app ============================ */
+(function(){
+  'use strict';
+  var LS = {
+    get:function(k,d){ try{ var v=localStorage.getItem('ecg.'+k); return v==null?d:JSON.parse(v);}catch(e){return d;} },
+    set:function(k,v){ try{ localStorage.setItem('ecg.'+k, JSON.stringify(v)); }catch(e){} },
+    del:function(k){ try{ localStorage.removeItem('ecg.'+k);}catch(e){} }
+  };
+
+  var state = {
+    view:'practice', cat:'all', theme: LS.get('settings',{theme:'dark'}).theme || 'dark',
+    dx:null, seed:0, marks:{}, chosen:null, submitted:false, showTerr:false,
+    options:[], session:{score:0,total:0,streak:0}
+  };
+  var progress = LS.get('progress',{});   // {dxId:{seen,correct,markSum,markN,lastTs}}
+
+  /* ---- seeded shuffle ---- */
+  function shuffle(arr, seed){
+    var rng = ECG.mulberry32(seed), a=arr.slice();
+    for(var i=a.length-1;i>0;i--){ var j=Math.floor(rng()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+    return a;
+  }
+
+  /* ---- theme ---- */
+  function applyTheme(){
+    document.documentElement.setAttribute('data-theme', state.theme);
+    document.getElementById('themeBtn').textContent = state.theme==='dark'?'Light mode':'Dark mode';
+  }
+  window.toggleTheme=function(){ state.theme = state.theme==='dark'?'light':'dark';
+    LS.set('settings',{theme:state.theme}); applyTheme(); };
+
+  /* ---- views ---- */
+  window.setView=function(v){
+    state.view=v;
+    ['practice','library','stats'].forEach(function(x){
+      document.getElementById('view-'+x).classList.toggle('hidden', x!==v);
+      document.getElementById('nav-'+x).classList.toggle('active', x===v);
+    });
+    if(v==='stats') renderStats();
+    if(v==='library') renderLibrary();
+  };
+
+  /* ---- category selector ---- */
+  function fillCatSel(){
+    var sel=document.getElementById('catSel');
+    var opts='<option value="all">All (mixed)</option>';
+    ECG.CATEGORIES.forEach(function(c){ opts+='<option value="'+c.id+'">'+c.label+'</option>'; });
+    sel.innerHTML=opts;
+    sel.value=state.cat;
+    sel.addEventListener('change',function(){ state.cat=sel.value; });
+  }
+
+  /* ---- pick a case ---- */
+  function pool(){
+    return state.cat==='all' ? ECG.DX : ECG.byCategory(state.cat);
+  }
+  window.newCase=function(){
+    var sel=document.getElementById('catSel'); if(sel) state.cat=sel.value;
+    var p=pool();
+    // prefer least-seen for coverage
+    var seedBase=(Date.now()&0xffffff);
+    var rng=ECG.mulberry32(seedBase);
+    var minSeen=Infinity; p.forEach(function(d){ var s=(progress[d.id]&&progress[d.id].seen)||0; if(s<minSeen)minSeen=s; });
+    var cand=p.filter(function(d){ return (((progress[d.id]&&progress[d.id].seen)||0)===minSeen); });
+    state.dx = cand[Math.floor(rng()*cand.length)];
+    state.seed = seedBase;
+    state.marks={}; state.chosen=null; state.submitted=false;
+    // build 5-option MCQ: correct + 4 distractors (same category first)
+    var others=ECG.DX.filter(function(d){ return d.id!==state.dx.id; });
+    var same=shuffle(others.filter(function(d){return d.category===state.dx.category;}), seedBase+1);
+    var diff=shuffle(others.filter(function(d){return d.category!==state.dx.category;}), seedBase+2);
+    var distract=same.concat(diff).slice(0,4);
+    state.options=shuffle([state.dx].concat(distract), seedBase+3);
+    renderCase();
+  };
+
+  /* ---- render the ECG + question ---- */
+  function terrClass(lead){
+    var t=ECG.leadTerritory(lead); if(!t)return '';
+    return 'terr-'+({LAD:'lad',LCx:'lcx',RCA:'rca'})[t.name];
+  }
+  function renderCase(){
+    var dx=state.dx, spec=cloneSpecWithSeed(dx.engineSpec, state.seed);
+    document.getElementById('caseCat').textContent = catLabel(dx.category);
+    document.getElementById('vignette').textContent = dx.clinical;
+    var gain=ECG.fitGain(spec, ECG.ALL12, 2500, 17);
+    var grid=document.getElementById('leadGrid'); grid.innerHTML='';
+    ECG.LAYOUT_ROWS.forEach(function(rowLeads){
+      rowLeads.forEach(function(L){
+        var cell=document.createElement('div');
+        cell.className='lead-cell';
+        cell.setAttribute('data-lead',L);
+        cell.innerHTML = ECG.panelSVG(spec,L,{durMs:2500,pxPerMm:3.8,heightMm:34,gain:gain,label:L,showCal:(L==='I')});
+        cell.addEventListener('click',function(){ cycleMark(L); });
+        grid.appendChild(cell);
+      });
+    });
+    document.getElementById('rhythmCell').innerHTML =
+      ECG.panelSVG(spec,'II',{durMs:10000,pxPerMm:3.8,heightMm:30,gain:gain,label:'II',showCal:true});
+    applyMarks(); applyTerritories();
+    // options
+    var oc=document.getElementById('opts'); oc.innerHTML='';
+    var letters=['A','B','C','D','E'];
+    state.options.forEach(function(o,i){
+      var el=document.createElement('div'); el.className='opt'; el.setAttribute('data-id',o.id);
+      el.innerHTML='<span class="k">'+letters[i]+'</span><span>'+o.name+'</span>';
+      el.addEventListener('click',function(){ if(state.submitted)return; state.chosen=o.id;
+        document.querySelectorAll('#opts .opt').forEach(function(x){x.classList.remove('sel');});
+        el.classList.add('sel'); document.getElementById('submitBtn').disabled=false; });
+      oc.appendChild(el);
+    });
+    document.getElementById('submitBtn').disabled=true;
+    document.getElementById('submitBtn').textContent='Submit';
+    document.getElementById('result').classList.add('hidden');
+    document.getElementById('sessScore').textContent=state.session.score;
+    document.getElementById('sessTotal').textContent=state.session.total;
+    document.getElementById('streak').textContent=state.session.streak;
+  }
+  function cloneSpecWithSeed(spec, seed){
+    var s=JSON.parse(JSON.stringify(spec)); s.seed=seed; return s;
+  }
+  function catLabel(id){ var c=ECG.CATEGORIES.filter(function(x){return x.id===id;})[0]; return c?c.label:id; }
+
+  /* ---- lead marking ---- */
+  function cycleMark(L){
+    if(state.submitted)return;
+    var cur=state.marks[L];
+    state.marks[L] = cur==null?'abn':(cur==='abn'?'norm':null);
+    if(state.marks[L]==null) delete state.marks[L];
+    applyMarks();
+  }
+  function applyMarks(){
+    document.querySelectorAll('.lead-cell').forEach(function(cell){
+      var L=cell.getAttribute('data-lead');
+      cell.classList.remove('mark-abn','mark-norm');
+      var badge=cell.querySelector('.badge'); if(badge) badge.remove();
+      var m=state.marks[L];
+      if(m==='abn'){ cell.classList.add('mark-abn'); addBadge(cell,'ABN','var(--bad)'); }
+      else if(m==='norm'){ cell.classList.add('mark-norm'); addBadge(cell,'NL','var(--good)'); }
+    });
+  }
+  function addBadge(cell,txt,color){
+    var b=document.createElement('span'); b.className='badge'; b.textContent=txt;
+    b.style.background=color; b.style.color='#fff'; cell.appendChild(b);
+  }
+
+  /* ---- territories ---- */
+  window.toggleTerritories=function(){ state.showTerr=!state.showTerr;
+    document.getElementById('terrBtn').textContent=state.showTerr?'Hide artery territories':'Show artery territories';
+    document.getElementById('terrLegend').classList.toggle('hidden',!state.showTerr);
+    applyTerritories(); };
+  function applyTerritories(){
+    document.querySelectorAll('.lead-cell').forEach(function(cell){
+      var L=cell.getAttribute('data-lead');
+      cell.classList.remove('terr-lad','terr-lcx','terr-rca');
+      var tb=cell.querySelector('.terr-badge'); if(tb) tb.remove();
+      if(state.showTerr){
+        var t=ECG.leadTerritory(L);
+        if(t){ cell.classList.add(terrClass(L));
+          var b=document.createElement('span'); b.className='terr-badge'; b.textContent=t.name;
+          b.style.background=({LAD:'var(--lad)',LCx:'var(--lcx)',RCA:'var(--rca)'})[t.name];
+          cell.appendChild(b); }
+      }
+    });
+  }
+
+  /* ---- submit + score ---- */
+  window.submitCase=function(){
+    if(state.submitted||!state.chosen)return;
+    state.submitted=true;
+    var dx=state.dx;
+    var correct = state.chosen===dx.id;
+    // mark options
+    document.querySelectorAll('#opts .opt').forEach(function(el){
+      var id=el.getAttribute('data-id');
+      if(id===dx.id) el.classList.add('correct');
+      else if(id===state.chosen) el.classList.add('wrong');
+    });
+    // lead marking score
+    var keyLeads=Object.keys(dx.keyLeads||{});
+    var markCorrect=0, markTotal=keyLeads.length, over=0;
+    document.querySelectorAll('.lead-cell').forEach(function(cell){
+      var L=cell.getAttribute('data-lead');
+      var isKey=keyLeads.indexOf(L)>=0;
+      var m=state.marks[L];
+      cell.classList.remove('key-correct','key-missed','key-over');
+      if(isKey){ if(m==='abn'){cell.classList.add('key-correct');markCorrect++;} else {cell.classList.add('key-missed');} }
+      else if(m==='abn'){ cell.classList.add('key-over'); over++; }
+    });
+    var markScore = markTotal? (markCorrect/markTotal) : 1;
+    // session + persistence
+    state.session.total++;
+    if(correct){ state.session.score++; state.session.streak++; } else { state.session.streak=0; }
+    var p=progress[dx.id]||{seen:0,correct:0,markSum:0,markN:0};
+    p.seen++; if(correct)p.correct++; p.markSum+=markScore; p.markN++; p.lastTs=Date.now();
+    progress[dx.id]=p; LS.set('progress',progress);
+    renderResult(correct,keyLeads,markCorrect,markTotal,over);
+    document.getElementById('sessScore').textContent=state.session.score;
+    document.getElementById('sessTotal').textContent=state.session.total;
+    document.getElementById('streak').textContent=state.session.streak;
+    document.getElementById('submitBtn').disabled=true;
+  };
+  function renderResult(correct,keyLeads,mc,mt,over){
+    var dx=state.dx, r=document.getElementById('result'); r.classList.remove('hidden');
+    var keyRows=keyLeads.map(function(L){ return '<tr><td><b>'+L+'</b></td><td>'+dx.keyLeads[L]+'</td></tr>'; }).join('');
+    var axisTxt = dx.axis==null?'not applicable':(dx.axis+' axis');
+    var recip='';
+    var elevLeads=keyLeads.filter(function(L){ return /elevation/i.test(dx.keyLeads[L]); });
+    if(elevLeads.length){
+      var rl={}; elevLeads.forEach(function(L){ ECG.reciprocalLeads(L).forEach(function(x){ rl[x]=1; }); });
+      var rls=Object.keys(rl).filter(function(x){return elevLeads.indexOf(x)<0;});
+      if(rls.length) recip='<div class="note" style="margin-top:6px">Reciprocal leads to check: '+rls.join(', ')+'</div>';
+    }
+    r.innerHTML =
+      '<div class="card" style="padding:12px">'+
+        '<div style="font-weight:800;color:'+(correct?'var(--good)':'var(--bad)')+';font-size:16px">'+
+          (correct?'Correct':'Not quite')+'</div>'+
+        '<div style="margin:4px 0 10px">Answer: <b>'+dx.name+'</b></div>'+
+        '<div class="kv" style="margin-bottom:10px">'+
+          '<div class="k">Category</div><div>'+catLabel(dx.category)+'</div>'+
+          '<div class="k">Rate</div><div>'+(dx.rate||'-')+(dx.rate?' /min':'')+'</div>'+
+          '<div class="k">Rhythm</div><div>'+(dx.rhythm||'-')+'</div>'+
+          '<div class="k">Axis</div><div>'+axisTxt+'</div>'+
+          (dx.territory?('<div class="k">Territory</div><div>'+dx.territory+'</div>'):'')+
+        '</div>'+
+        (keyRows?('<div class="note">Key leads</div><table style="margin:4px 0 6px">'+keyRows+'</table>'):'')+
+        (mt?('<div class="note">Your lead marking: '+mc+' / '+mt+' key leads found'+(over?(', '+over+' extra'):'')+'</div>'):'')+
+        recip+
+        '<div class="teach" style="margin-top:10px">'+dx.teaching+'</div>'+
+        '<button class="btn primary" style="margin-top:12px;width:100%" onclick="window.newCase()">Next case &rarr;</button>'+
+      '</div>';
+  }
+
+  /* ---- library ---- */
+  window.renderLibrary=function(){
+    var lib=window.ECG_LIBRARY||[];
+    var fsel=document.getElementById('libFilter');
+    if(fsel && !fsel.dataset.filled){
+      var conds={}; lib.forEach(function(x){ conds[x.condition]=1; });
+      var o='<option value="all">All conditions ('+lib.length+')</option>';
+      Object.keys(conds).sort().forEach(function(c){ o+='<option value="'+c.replace(/"/g,'')+'">'+c+'</option>'; });
+      fsel.innerHTML=o; fsel.dataset.filled='1';
+    }
+    var f=fsel?fsel.value:'all';
+    var grid=document.getElementById('libGrid'); grid.innerHTML='';
+    lib.filter(function(x){ return f==='all'||x.condition===f; }).forEach(function(x){
+      var d=document.createElement('div'); d.className='lib-card card';
+      d.innerHTML='<img loading="lazy" src="ecg-library/'+x.filename+'" alt="'+x.condition+'">'+
+        '<div class="cap"><b>'+x.condition+'</b><br><span class="note">'+(x.clinical_notes||'')+'</span>'+
+        '<br><span class="note">'+(x.license||'')+'</span></div>';
+      grid.appendChild(d);
+    });
+  };
+
+  /* ---- stats ---- */
+  function renderStats(){
+    var ids=Object.keys(progress);
+    var attempts=0,correct=0;
+    ids.forEach(function(id){ attempts+=progress[id].seen; correct+=progress[id].correct; });
+    document.getElementById('stAttempts').textContent=attempts;
+    document.getElementById('stAcc').textContent= attempts? Math.round(100*correct/attempts)+'%':'-';
+    document.getElementById('stSeen').textContent=ids.length+' / '+ECG.DX.length;
+    var rows='<tr><th>Diagnosis</th><th>Category</th><th>Seen</th><th>Correct</th><th>Dx acc</th><th>Lead acc</th></tr>';
+    ECG.DX.forEach(function(d){
+      var p=progress[d.id];
+      var acc=p&&p.seen?Math.round(100*p.correct/p.seen)+'%':'-';
+      var la=p&&p.markN?Math.round(100*p.markSum/p.markN)+'%':'-';
+      rows+='<tr><td>'+d.name+'</td><td>'+catLabel(d.category)+'</td><td>'+(p?p.seen:0)+'</td><td>'+(p?p.correct:0)+'</td><td>'+acc+'</td><td>'+la+'</td></tr>';
+    });
+    document.getElementById('dxTable').innerHTML=rows;
+  }
+  window.exportProgress=function(){
+    var blob=new Blob([JSON.stringify({progress:progress,exported:new Date().toISOString()},null,2)],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ecg-progress.json'; a.click();
+  };
+  window.importProgress=function(ev){
+    var f=ev.target.files[0]; if(!f)return; var rd=new FileReader();
+    rd.onload=function(){ try{ var o=JSON.parse(rd.result); if(o.progress){ progress=o.progress; LS.set('progress',progress); renderStats(); alert('Progress imported.'); } }catch(e){ alert('Invalid file.'); } };
+    rd.readAsText(f);
+  };
+  window.resetProgress=function(){
+    if(!confirm('Reset all ECG progress in this browser?'))return;
+    progress={}; LS.del('progress'); renderStats();
+  };
+
+  /* ---- init ---- */
+  function init(){
+    if(typeof ECG==='undefined'){ document.body.innerHTML='<p style="padding:20px">ECG engine failed to load.</p>'; return; }
+    applyTheme(); fillCatSel(); newCase();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+</body>
+</html>

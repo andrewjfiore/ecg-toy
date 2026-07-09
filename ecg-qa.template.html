@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ECG synthesis QA harness</title>
+<style>
+  :root{
+    --bg:#0b0f17; --fg:#e8edf5; --muted:#8b97a8; --card:#131a26; --border:#243043;
+    --ecg-paper:#fff5f6; --ecg-grid-minor:#f3c9cf; --ecg-grid-major:#e79aa4; --ecg-trace:#111418;
+    --accent:#4f9dff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:18px}
+  h1{font-size:18px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .controls{margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:8px;
+    padding:6px 12px;font-size:13px;cursor:pointer}
+  button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .case{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:16px}
+  .case h2{font-size:15px;margin:0 0 2px}
+  .case .meta{color:var(--muted);font-size:12px;margin-bottom:8px}
+  .ecg-cell{background:var(--ecg-paper);border-radius:3px;overflow:hidden;line-height:0}
+  .ecg-rhythm{background:var(--ecg-paper);border-radius:3px;overflow:hidden;line-height:0}
+  .ecg-panel-svg{display:block;width:100%;height:auto}
+  .strip-mode .ecg-12-grid{display:none!important}
+</style>
+</head>
+<body>
+<h1>ECG synthesis QA harness</h1>
+<div class="sub">Renders every synthetic diagnosis so waveform realism can be eyeballed. Calibrated to 25 mm/s, 10 mm/mV (auto half-standard for high-voltage cases; note the calibration pulse).</div>
+<div class="controls">
+  <button id="mode12" class="active" onclick="setMode('full')">12-lead</button>
+  <button id="modeStrip" onclick="setMode('strip')">Lead II strips only</button>
+  <span id="count" style="color:var(--muted);font-size:12px"></span>
+</div>
+<div id="out"></div>
+<script src="ecg-engine.js"></script>
+<!--ECG_ENGINE_TAG-->
+<script>
+  var mode = 'full';
+  function setMode(m){
+    mode=m;
+    document.getElementById('mode12').classList.toggle('active',m==='full');
+    document.getElementById('modeStrip').classList.toggle('active',m==='strip');
+    render();
+  }
+  function render(){
+    var out=document.getElementById('out');
+    var html='';
+    ECG.DX.forEach(function(d){
+      html+='<div class="case"><h2>'+d.name+'</h2>'+
+        '<div class="meta">'+d.category+' &middot; rate '+(d.rate||'-')+' &middot; '+(d.rhythm||'')+' &middot; axis '+(d.axis||'-')+(d.territory?(' &middot; '+d.territory):'')+'</div>';
+      if(mode==='full') html+=ECG.twelveLeadSVG(d.engineSpec);
+      else html+='<div class="ecg-rhythm">'+ECG.panelSVG(d.engineSpec,'II',{durMs:10000,pxPerMm:3.6,heightMm:32,gain:ECG.fitGain(d.engineSpec,['II'],10000,15),label:'II',showCal:true})+'</div>';
+      html+='</div>';
+    });
+    out.innerHTML=html;
+    document.getElementById('count').textContent=ECG.DX.length+' diagnoses';
+  }
+  render();
+</script>
+</body>
+</html>
