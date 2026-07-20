@@ -57,12 +57,18 @@ They are also written so the vignette does not answer the question. The original
 
 ## Case selection
 
-Every diagnosis appears once before any repeats. After that, **Case mix** controls the draw:
+Every diagnosis appears once before any repeats. After that, **Which cases** controls the draw:
 
-- *Weak first* (default) draws weighted by weakness, so a diagnosis you keep missing comes up about 3x as often as one you have mastered. Accuracy is Laplace-smoothed (`(correct+1)/(seen+2)`) so a single miss is not a permanent 0%, and the weight has a floor so mastered diagnoses stay in rotation.
+- *Dynamic* (default) draws weighted by weakness, so a diagnosis you keep missing comes up about 3x as often as one you have mastered. Accuracy is Laplace-smoothed (`(correct+1)/(seen+2)`) so a single miss is not a permanent 0%, and the weight has a floor so mastered diagnoses stay in rotation.
 - *Even coverage* always draws from the least-seen diagnoses, ignoring accuracy.
 
 Weighting reads diagnosis accuracy only. Lead reading never influences which case you get.
+
+## What the case does and does not reveal
+
+The clinical category (rhythm, conduction, ischemia, and so on) narrows the differential, so it is **hidden until you answer** and revealed with the rest of the teaching. Option labels drop their parenthetical for the same reason: "NSTEMI / ischemia (ST depression, TWI)" would hand over the finding, so the option reads "NSTEMI / ischemia" and the full name returns on the answer card.
+
+A **scoreboard** at the bottom of the practice page shows the session score and streak, overall diagnosis accuracy, diagnoses seen, and a live ranking of your weakest and strongest diagnoses. Like everything else, it reads diagnosis accuracy only.
 
 ## Diagnoses covered (30)
 

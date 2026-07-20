@@ -60,8 +60,8 @@
   .lead-cell.key-correct{border-color:var(--good)}
   .lead-cell.key-missed{border-color:var(--warn);border-style:dashed}
   .lead-cell.key-over{border-color:var(--bad);border-style:dotted}
-  .lead-cell .badge{position:absolute;top:2px;right:3px;font-size:10px;font-weight:700;padding:1px 5px;
-    border-radius:6px;line-height:1.3;z-index:2}
+  .lead-cell .badge{position:absolute;top:2px;right:3px;font-size:9px;font-weight:700;padding:1px 5px;
+    border-radius:6px;line-height:1.3;z-index:2;letter-spacing:.2px}
   .lead-cell .terr-badge{position:absolute;bottom:2px;right:3px;font-size:9px;font-weight:700;color:#fff;
     padding:1px 5px;border-radius:5px;z-index:2}
   .ecg-panel-svg{display:block;width:100%;height:auto}
@@ -113,6 +113,21 @@
   .modal-card ul{margin:4px 0;padding-left:20px}
   .modal-actions{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
   kbd{background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:12px}
+  .infodot{width:15px;height:15px;padding:0;margin-left:3px;border-radius:50%;border:1px solid var(--border);
+    background:var(--panel2);color:var(--muted);font-size:10px;font-weight:700;line-height:1;cursor:pointer;
+    vertical-align:middle}
+  .infodot:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ---- scoreboard (bottom of practice) ---- */
+  #scoreboard{margin-top:14px}
+  .sb-grid{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start}
+  .sb-cell{min-width:120px}
+  .sb-rank{flex:1;min-width:240px}
+  .sb-rank .cols{display:flex;gap:22px;flex-wrap:wrap}
+  .sb-rank ol{margin:4px 0 0;padding-left:18px;font-size:13px}
+  .sb-rank li{margin:2px 0}
+  .sb-rank .pct{color:var(--muted)}
+  .sb-empty{color:var(--muted);font-size:13px;margin-top:4px}
 
   /* ---- guided tour ---- */
   /* Four dim panels around the target rather than a clip-path cut-out: it needs
@@ -137,7 +152,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">ECG Trainer <small>12-lead practice</small></div>
+  <div class="brand">ECG Trainer</div>
   <nav>
     <button id="nav-practice" class="active" onclick="setView('practice')">Practice</button>
     <button id="nav-library" onclick="setView('library')">Reference library</button>
@@ -150,6 +165,15 @@
 </header>
 
 <!-- HELP -->
+<!-- INFO POPOVERS (small, single-topic) -->
+<div id="infoModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+  <div class="modal-card" style="max-width:440px">
+    <h2 id="infoTitle"></h2>
+    <div id="infoBody"></div>
+    <div class="modal-actions"><button class="btn primary" onclick="closeInfo()">Got it</button></div>
+  </div>
+</div>
+
 <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
   <div class="modal-card">
     <h2 id="helpTitle">How this works</h2>
@@ -163,16 +187,16 @@
     </ul>
 
     <h3>What counts</h3>
-    <p><b>Only your diagnosis.</b> Your score, your streak and the case you get next all come from that, and nothing else.</p>
+    <p>Your score, your streak and the case you get next come from your diagnosis. Lead reading is tracked and shown on its own, so it never changes your score.</p>
 
     <h3>Two modes</h3>
     <ul>
-      <li><b>Easy</b> asks for the diagnosis. You can still mark leads as you think, but it is just a scratchpad.</li>
-      <li><b>Hard</b> also asks you to call all 12 leads before you submit. Those calls are shown separately and <b>never change your score</b>.</li>
+      <li><b>Easy</b> asks for the diagnosis. You can still identify leads as you think, but it is just a scratchpad.</li>
+      <li><b>Hard</b> also asks you to identify all 12 leads before you submit.</li>
     </ul>
 
-    <h3>Marking leads</h3>
-    <p>Click a lead to call it abnormal, then normal, then clear it again. The keyboard works too: tab to a lead and press <kbd>Enter</kbd>.</p>
+    <h3>Identifying leads</h3>
+    <p>Click a lead to identify it as abnormal, then normal, then clear it again. The keyboard works too: tab to a lead and press <kbd>Enter</kbd>.</p>
     <p>Some leads are a genuine matter of judgment. Those are left out of your lead accuracy rather than counted against you.</p>
 
     <h3>Your progress</h3>
@@ -219,13 +243,15 @@
           <div class="note">Mode</div>
           <select id="diffSel" onchange="setDifficulty(this.value)">
             <option value="easy">Easy: diagnosis only</option>
-            <option value="hard">Hard: call every lead</option>
+            <option value="hard">Hard: identify every lead</option>
           </select>
         </div>
         <div>
-          <div class="note">Which cases</div>
+          <div class="note">Which cases
+            <button class="infodot" type="button" aria-label="What the case order means"
+                    onclick="showInfo('order')">i</button></div>
           <select id="mixSel" onchange="setMix(this.value)">
-            <option value="weak">Weak spots first</option>
+            <option value="weak">Dynamic</option>
             <option value="even">Even coverage</option>
           </select>
         </div>
@@ -244,17 +270,17 @@
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:flex-start">
         <div style="flex:1;min-width:280px">
-          <div class="pill" id="caseCat">rhythm</div>
+          <div class="pill hidden" id="caseCat">rhythm</div>
           <p id="vignette" style="margin:8px 0 10px;font-size:15px"></p>
           <div class="ecg-wrap">
-            <div class="ecg-12-grid" id="leadGrid" role="group" aria-label="12-lead ECG. Each lead can be marked normal or abnormal."></div>
+            <div class="ecg-12-grid" id="leadGrid" role="group" aria-label="12-lead ECG. Each lead can be identified as normal or abnormal."></div>
             <div class="rhythm-cell" id="rhythmCell"></div>
           </div>
           <div class="legend" style="margin-top:8px">
-            <span id="markHint">Click a lead to mark it:</span>
-            <span><span class="sw" style="background:var(--bad)"></span>abnormal</span>
-            <span><span class="sw" style="background:var(--good)"></span>normal</span>
-            <span id="markCount" class="hidden"><b>0 / 12</b> rated</span>
+            <span id="markHint">Click a lead to identify it:</span>
+            <span><span class="sw" style="background:var(--bad)"></span>Abnormal</span>
+            <span><span class="sw" style="background:var(--good)"></span>Normal</span>
+            <span id="markCount" class="hidden"><b>0 / 12</b> identified</span>
             <span id="terrLegend" class="hidden">
               <span><span class="sw" style="background:var(--lad)"></span>LAD (V1-V4)</span>
               <span><span class="sw" style="background:var(--lcx)"></span>LCx (I,aVL,V5,V6)</span>
@@ -267,6 +293,35 @@
           <div class="opts" id="opts"></div>
           <button class="btn primary" id="submitBtn" style="margin-top:12px;width:100%" onclick="submitCase()" disabled>Submit</button>
           <div id="result" class="hidden" style="margin-top:14px" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCOREBOARD -->
+    <div class="card" id="scoreboard">
+      <div class="sb-grid">
+        <div class="sb-cell">
+          <div class="note">This session</div>
+          <div class="stat-num"><span id="sbScore">0</span> <span class="muted">/ <span id="sbTotal">0</span></span></div>
+          <div class="note">streak <b id="sbStreak">0</b></div>
+        </div>
+        <div class="sb-cell">
+          <div class="note">Diagnosis accuracy</div>
+          <div class="stat-num" id="sbAcc">-</div>
+          <div class="note"><b id="sbAttempts">0</b> attempts</div>
+        </div>
+        <div class="sb-cell">
+          <div class="note">Diagnoses seen</div>
+          <div class="stat-num" id="sbSeen">0 / 0</div>
+          <div class="note">across all time</div>
+        </div>
+        <div class="sb-rank">
+          <div class="note">Your ranking
+            <button class="infodot" type="button" aria-label="How the ranking is built" onclick="showInfo('ranking')">i</button></div>
+          <div class="cols">
+            <div style="flex:1;min-width:150px"><div class="note" style="margin:4px 0">Needs work</div><ol id="sbWeak"></ol><div class="sb-empty hidden" id="sbWeakEmpty">Nothing yet</div></div>
+            <div style="flex:1;min-width:150px"><div class="note" style="margin:4px 0">Strongest</div><ol id="sbStrong"></ol><div class="sb-empty hidden" id="sbStrongEmpty">Nothing yet</div></div>
+          </div>
         </div>
       </div>
     </div>
@@ -2444,11 +2499,11 @@
   function applyDifficulty(){
     var hard=isHard();
     document.getElementById('markHint').textContent = hard
-      ? 'Call every lead (click to cycle abnormal / normal):'
-      : 'Optional: click a lead to mark it';
+      ? 'Identify every lead (click to cycle abnormal / normal):'
+      : 'Optional: click a lead to identify it';
     document.getElementById('markCount').classList.toggle('hidden', !hard);
     document.getElementById('scoreNote').textContent = hard
-      ? 'Diagnosis only. Lead calls shown separately.'
+      ? 'Diagnosis only. Lead reading shown separately.'
       : 'Diagnosis only';
     updateMarkCount();
   }
@@ -2459,7 +2514,7 @@
   function updateMarkCount(){
     var el=document.getElementById('markCount'); if(!el) return;
     var n=markedCount();
-    el.innerHTML='<b>'+n+' / 12</b> rated';
+    el.innerHTML='<b>'+n+' / 12</b> identified';
     el.style.color = (n===12) ? 'var(--good)' : '';
   }
   /* Hard mode will not let you submit a half-rated ECG - committing to all 12 is
@@ -2471,7 +2526,7 @@
     var needLeads = isHard() ? (12-markedCount()) : 0;
     if(!state.chosen){ btn.disabled=true; btn.textContent='Select a diagnosis'; return; }
     if(needLeads>0){ btn.disabled=true;
-      btn.textContent='Call '+needLeads+' more lead'+(needLeads>1?'s':''); return; }
+      btn.textContent='Identify '+needLeads+' more lead'+(needLeads>1?'s':''); return; }
     btn.disabled=false; btn.textContent='Submit';
   }
 
@@ -2555,7 +2610,10 @@
   }
   function renderCase(){
     var dx=state.dx, spec=cloneSpecWithSeed(dx.engineSpec, state.seed);
-    document.getElementById('caseCat').textContent = catLabel(dx.category);
+    // the category narrows the differential, so it stays hidden until the answer
+    // is revealed; it is filled in but not shown here
+    var cc=document.getElementById('caseCat');
+    cc.textContent = catLabel(dx.category); cc.classList.add('hidden');
     // the story varies between sightings of the same diagnosis; the seed keeps it
     // stable while this case is on screen
     document.getElementById('vignette').textContent = ECG.vignetteFor(dx, state.seed);
@@ -2583,7 +2641,7 @@
     state.options.forEach(function(o,i){
       var el=document.createElement('button'); el.type='button';
       el.className='opt'; el.setAttribute('data-id',o.id);
-      el.innerHTML='<span class="k">'+letters[i]+'</span><span>'+esc(o.name)+'</span>';
+      el.innerHTML='<span class="k">'+letters[i]+'</span><span>'+esc(optName(o.name))+'</span>';
       el.addEventListener('click',function(){ if(state.submitted)return; state.chosen=o.id;
         document.querySelectorAll('#opts .opt').forEach(function(x){
           x.classList.remove('sel'); x.setAttribute('aria-pressed','false'); });
@@ -2616,11 +2674,11 @@
       cell.classList.remove('mark-abn','mark-norm');
       var badge=cell.querySelector('.badge'); if(badge) badge.remove();
       var m=state.marks[L];
-      if(m==='abn'){ cell.classList.add('mark-abn'); addBadge(cell,'ABN','var(--bad)'); }
-      else if(m==='norm'){ cell.classList.add('mark-norm'); addBadge(cell,'NL','var(--good)'); }
+      if(m==='abn'){ cell.classList.add('mark-abn'); addBadge(cell,'Abnormal','var(--bad)'); }
+      else if(m==='norm'){ cell.classList.add('mark-norm'); addBadge(cell,'Normal','var(--good)'); }
       // the mark is conveyed by border color, so state must also reach a screen reader
       cell.setAttribute('aria-label','Lead '+L+': '+
-        (m==='abn'?'called abnormal':m==='norm'?'called normal':'not called yet')+
+        (m==='abn'?'identified as abnormal':m==='norm'?'identified as normal':'not identified yet')+
         '. Activate to cycle abnormal, normal, clear.');
     });
   }
@@ -2688,10 +2746,13 @@
     // lead accuracy accumulates in its own counters, never in p.correct/p.seen
     if(lead.scored){ p.markSum+=(lead.right/lead.graded); p.markN++; }
     progress[dx.id]=p; LS.set('progress',progress);
+    // the answer is out now, so the category is no longer a hint
+    document.getElementById('caseCat').classList.remove('hidden');
     renderResult(correct,keyLeads,lead);
     document.getElementById('sessScore').textContent=state.session.score;
     document.getElementById('sessTotal').textContent=state.session.total;
     document.getElementById('streak').textContent=state.session.streak;
+    updateScoreboard();
     document.getElementById('submitBtn').disabled=true;
   };
   function renderResult(correct,keyLeads,lead){
@@ -2799,6 +2860,11 @@
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
     return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
   function num(v){ v=Number(v); return isFinite(v)?v:0; }
+  /* Option labels drop the parenthetical, which often gives the finding away
+     (NSTEMI "(ST depression, TWI)", PE "(right heart strain)") or names the
+     territory or subtype. The full name is kept for the answer reveal, where the
+     detail is teaching rather than a hint. */
+  function optName(name){ return String(name).replace(/\s*\([^)]*\)/g,'').replace(/\s+/g,' ').trim(); }
   window.exportProgress=function(){
     var blob=new Blob([JSON.stringify({progress:progress,exported:new Date().toISOString()},null,2)],{type:'application/json'});
     var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='ecg-progress.json'; a.click();
@@ -2828,7 +2894,7 @@
         var o=JSON.parse(rd.result);
         if(!o||typeof o.progress!=='object'||!o.progress){ alert('No progress data in that file.'); return; }
         var s=sanitizeProgress(o.progress);
-        progress=s.progress; LS.set('progress',progress); renderStats();
+        progress=s.progress; LS.set('progress',progress); renderStats(); updateScoreboard();
         alert('Progress imported: '+s.kept+' diagnoses'+(s.dropped?(', '+s.dropped+' unrecognized entries ignored'):'')+'.');
       }catch(e){ alert('Invalid file.'); }
     };
@@ -2837,7 +2903,7 @@
   };
   window.resetProgress=function(){
     if(!confirm('Reset all ECG progress in this browser?'))return;
-    progress={}; LS.del('progress'); renderStats();
+    progress={}; LS.del('progress'); renderStats(); updateScoreboard();
   };
 
   /* ======================= help + guided tour ======================= */
@@ -2853,13 +2919,75 @@
     if(lastFocus&&lastFocus.focus) lastFocus.focus();
   };
 
+  /* ---- small info popovers ---- */
+  var INFO={
+    order:{title:'Which cases come next',html:
+      '<p>Every diagnosis appears once before any repeats. After that:</p>'+
+      '<p><b>Dynamic</b> weights the draw toward what you get wrong, so a diagnosis you keep missing comes up about three times as often as one you have mastered, and mastered ones still return now and then. Only your diagnosis feeds this, never your lead reading.</p>'+
+      '<p><b>Even coverage</b> ignores accuracy and simply draws the least-seen diagnoses.</p>'},
+    ranking:{title:'Your ranking',html:
+      '<p>Diagnoses you have seen at least once, ordered by how often you get the diagnosis right. <b>Needs work</b> lists your lowest, <b>Strongest</b> your highest.</p>'+
+      '<p>Accuracy is smoothed, so a single miss on a diagnosis you have barely seen does not read as a permanent zero. Lead reading is not part of this.</p>'}
+  };
+  window.showInfo=function(key){
+    var d=INFO[key]; if(!d) return;
+    lastFocus=document.activeElement;
+    document.getElementById('infoTitle').textContent=d.title;
+    document.getElementById('infoBody').innerHTML=d.html;
+    var m=document.getElementById('infoModal');
+    m.classList.remove('hidden'); m.querySelector('.btn.primary').focus();
+  };
+  window.closeInfo=function(){
+    document.getElementById('infoModal').classList.add('hidden');
+    if(lastFocus&&lastFocus.focus) lastFocus.focus();
+  };
+
+  /* ---- scoreboard at the bottom of the practice view ----
+     Diagnosis accuracy only, matching the rest of the tool: lead reading never
+     enters the score, the streak, or the ranking. Accuracy is Laplace-smoothed
+     the same way the case weighting is, so a single miss on a barely-seen
+     diagnosis is not treated as a permanent zero in the ranking. */
+  function updateScoreboard(){
+    document.getElementById('sbScore').textContent=state.session.score;
+    document.getElementById('sbTotal').textContent=state.session.total;
+    document.getElementById('sbStreak').textContent=state.session.streak;
+    var ids=Object.keys(progress), attempts=0, correct=0, ranked=[];
+    ids.forEach(function(id){
+      var p=progress[id]; attempts+=num(p.seen); correct+=num(p.correct);
+      if(num(p.seen)>0){
+        var dx=ECG.byId(id); if(!dx) return;
+        ranked.push({name:optName(dx.name), acc:p.correct/p.seen,
+          smooth:(p.correct+1)/(p.seen+2), seen:p.seen});
+      }
+    });
+    document.getElementById('sbAttempts').textContent=attempts;
+    document.getElementById('sbAcc').textContent= attempts? Math.round(100*correct/attempts)+'%':'-';
+    document.getElementById('sbSeen').textContent=ids.filter(function(id){return num(progress[id].seen)>0;}).length+' / '+ECG.DX.length;
+
+    function fill(listId, emptyId, arr){
+      var ol=document.getElementById(listId), empty=document.getElementById(emptyId);
+      ol.innerHTML='';
+      if(!arr.length){ empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden');
+      arr.forEach(function(r){
+        var li=document.createElement('li');
+        li.innerHTML=esc(r.name)+' <span class="pct">'+Math.round(100*r.acc)+'%</span>';
+        ol.appendChild(li);
+      });
+    }
+    var byWeak=ranked.slice().sort(function(a,b){ return a.smooth-b.smooth || b.seen-a.seen; }).slice(0,3);
+    var byStrong=ranked.slice().sort(function(a,b){ return b.smooth-a.smooth || b.seen-a.seen; }).slice(0,3);
+    fill('sbWeak','sbWeakEmpty',byWeak);
+    fill('sbStrong','sbStrongEmpty',byStrong);
+  }
+
   /* Six steps, deliberately short. Each names a real element; a step whose target
      is missing is skipped rather than pointing at nothing. */
   var TOUR=[
     {sel:'#vignette',  text:'Each case starts with a short history, then the 12-lead tracing below it. Every case is drawn fresh, so you can keep going as long as you like.'},
-    {sel:'#opts',      text:'Choose the diagnosis from five options. <b>This is the only thing that counts.</b> Your score, your streak and the case you get next all come from it.'},
-    {sel:'#diffSel',   text:'<b>Easy</b> asks for the diagnosis. <b>Hard</b> also asks you to call every lead normal or abnormal before you can submit.'},
-    {sel:'#leadGrid',  text:'Click any lead to call it abnormal, then normal, then clear it again. The keyboard works too. Your lead calls are shown separately and never move your score.'},
+    {sel:'#opts',      text:'Choose the diagnosis from five options. Your score, your streak and the case you get next all come from your diagnosis.'},
+    {sel:'#diffSel',   text:'<b>Easy</b> asks for the diagnosis. <b>Hard</b> also asks you to identify every lead as normal or abnormal before you can submit.'},
+    {sel:'#leadGrid',  text:'Click any lead to identify it as abnormal, then normal, then clear it again. The keyboard works too. Your lead reading is shown separately and never moves your score.'},
     {sel:'#submitBtn', text:'Submit to see the answer, which leads gave it away, and a teaching point.'},
     {sel:'#nav-stats', text:'Progress keeps your diagnosis accuracy and your lead reading apart, so you can watch each improve. Come back to this tour whenever you like from the <b>?</b> button.'}
   ];
@@ -2951,13 +3079,18 @@
     var diffSel=document.getElementById('diffSel'); if(diffSel) diffSel.value=state.difficulty;
     applyDifficulty();
     newCase();
+    updateScoreboard();
 
-    // dismiss the help dialog on Escape or a click on the backdrop
-    document.getElementById('helpModal').addEventListener('click',function(e){
-      if(e.target===this) closeHelp();
+    // dismiss either modal on Escape or a backdrop click
+    ['helpModal','infoModal'].forEach(function(mid){
+      document.getElementById(mid).addEventListener('click',function(e){
+        if(e.target===this){ mid==='infoModal'?closeInfo():closeHelp(); }
+      });
     });
     document.addEventListener('keydown',function(e){
-      if(e.key==='Escape'&&!document.getElementById('helpModal').classList.contains('hidden')) closeHelp();
+      if(e.key!=='Escape') return;
+      if(!document.getElementById('infoModal').classList.contains('hidden')) closeInfo();
+      else if(!document.getElementById('helpModal').classList.contains('hidden')) closeHelp();
     });
 
     /* First visit only. The case is already rendered, so the tour points at real

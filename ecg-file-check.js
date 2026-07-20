@@ -125,7 +125,7 @@ const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V
   const help = await page.evaluate(() => {
     document.getElementById('helpBtn').click();
     const openHelp = !document.getElementById('helpModal').classList.contains('hidden');
-    const hasInstructions = /only your diagnosis/i.test(document.getElementById('helpModal').textContent);
+    const hasInstructions = /come from your diagnosis/i.test(document.getElementById('helpModal').textContent);
     document.querySelector('#helpModal .btn.primary').click();     // "Take the guided tour"
     const tourReopened = !document.getElementById('tour').classList.contains('hidden');
     const helpClosed = document.getElementById('helpModal').classList.contains('hidden');
@@ -186,7 +186,7 @@ const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V
   }, LEADS);
   check('hard: blocked with dx chosen but no leads', gate.afterDx === true);
   check('hard: still blocked at 11/12 leads', gate.at11 === true);
-  check('hard: explains what is missing', /Call 1 more lead/.test(gate.label11));
+  check('hard: explains what is missing', /Identify 1 more lead/.test(gate.label11));
   check('hard: unblocked at 12/12 leads', gate.at12 === false);
 
   /* ---- the invariant: lead marking never moves the score ---- */
@@ -236,6 +236,66 @@ const LEADS = ['I', 'II', 'III', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V
   check('score moves only with the diagnosis', scoreOnlyFromDx);
   check('every submitted case counts once', everyCaseCounted);
   check('streak moves only with the diagnosis', streakOnlyFromDx);
+
+  /* ---- pre-answer state must not hint at the diagnosis ---- */
+  const hints = await page.evaluate(() => {
+    window.setDifficulty('easy');       // so submit is not gated on lead identification
+    window.newCase();
+    const catHiddenBefore = document.getElementById('caseCat').classList.contains('hidden');
+    // option labels must carry no parenthetical (which would leak the finding)
+    const optText = [...document.querySelectorAll('#opts .opt')].map(o => o.textContent);
+    const parenInOpts = optText.some(t => /\(/.test(t));
+    // answer, then category should reveal
+    document.querySelector('#opts .opt').click();
+    document.getElementById('submitBtn').click();
+    const catShownAfter = !document.getElementById('caseCat').classList.contains('hidden');
+    return { catHiddenBefore, parenInOpts, catShownAfter };
+  });
+  check('category hidden before answering', hints.catHiddenBefore === true);
+  check('option labels drop the parenthetical hint', hints.parenInOpts === false);
+  check('category revealed after answering', hints.catShownAfter === true);
+
+  /* ---- leads spell out abnormal / normal, not ABN / NL ---- */
+  const badges = await page.evaluate(() => {
+    window.newCase();
+    const cell = document.querySelector('.lead-cell');
+    cell.click();                         // -> abnormal
+    const one = (cell.querySelector('.badge') || {}).textContent || '';
+    cell.click();                         // -> normal
+    const two = (cell.querySelector('.badge') || {}).textContent || '';
+    return { one, two };
+  });
+  check('abnormal badge is spelled out', /Abnormal/i.test(badges.one) && !/^ABN$/.test(badges.one));
+  check('normal badge is spelled out', /Normal/i.test(badges.two));
+
+  /* ---- scoreboard at the bottom reflects the session ---- */
+  const board = await page.evaluate(() => {
+    const sb = document.getElementById('scoreboard');
+    const onPractice = sb && sb.offsetParent !== null;
+    const total = +document.getElementById('sbTotal').textContent;
+    const acc = document.getElementById('sbAcc').textContent;
+    const ranked = document.querySelectorAll('#sbWeak li, #sbStrong li').length;
+    return { onPractice, total, acc, ranked };
+  });
+  check('scoreboard visible on the practice page', board.onPractice === true);
+  check('scoreboard counts the session', board.total >= 1);
+  check('scoreboard shows a ranking once cases are seen', board.ranked >= 1);
+
+  /* ---- info popovers open and close ---- */
+  const info = await page.evaluate(() => {
+    window.showInfo('order');
+    const openOrder = !document.getElementById('infoModal').classList.contains('hidden') &&
+      /Dynamic/.test(document.getElementById('infoBody').textContent);
+    window.closeInfo();
+    const closed = document.getElementById('infoModal').classList.contains('hidden');
+    window.showInfo('ranking');
+    const openRank = /Needs work|ranking/i.test(document.getElementById('infoBody').textContent);
+    window.closeInfo();
+    return { openOrder, closed, openRank };
+  });
+  check('info popover explains the case order', info.openOrder === true);
+  check('info popover closes', info.closed === true);
+  check('info popover explains the ranking', info.openRank === true);
 
   const persisted = await page.evaluate(() => {
     const p = JSON.parse(localStorage.getItem('ecg.progress') || '{}');
