@@ -6,19 +6,23 @@ var ECG = require('./ecg-engine.js');
 var pass = 0, fail = 0, notes = [];
 function ok(cond, msg) { if (cond) { pass++; } else { fail++; notes.push('FAIL: ' + msg); } }
 
-// helper: mean ST-region voltage for a lead (J+40..J+120 after each QRS) via
-// sampling the raw beat template deviation. We approximate by measuring the
-// signal at the ST window of the first ventricular beat, minus PR baseline.
+// helper: mean ST-region voltage for a lead, minus the PR baseline.
+//
+// The window is anchored to the J point (ECG.qrsEndMs) rather than a fixed
+// offset. It used to sample q0+90..130, which only worked while the QRS template
+// rendered too narrow; once the complex renders its true width, a fixed 90 ms
+// offset lands INSIDE the QRS and reads the S wave as ST depression. The J point
+// moves with spec.qrsWidth, so the measurement has to move with it.
 function stDeviation(dx, lead) {
   var spec = dx.engineSpec;
   var samples = ECG.sampleLead(spec, lead, 0, 2500, 2);
   var rhythm = ECG.buildRhythm(spec, 2500);
   if (!rhythm.vEvents.length) return 0;
   var q0 = rhythm.vEvents[0].t;
+  var j = ECG.qrsEndMs(spec, lead);
   function at(tms) { var idx = Math.round(tms / 2); return samples[idx] || 0; }
-  // baseline = TP segment just before the P of beat 2 or well before QRS
-  var base = at(q0 - 60);
-  var stwin = (at(q0 + 90) + at(q0 + 110) + at(q0 + 130)) / 3;
+  var base = at(q0 - 60);                      // TP segment before the beat
+  var stwin = (at(q0 + j + 20) + at(q0 + j + 40) + at(q0 + j + 60)) / 3;
   return stwin - base;
 }
 function peakR(dx, lead) {

@@ -1,0 +1,542 @@
+{
+ "ecg-001": {
+  "name": "Normal sinus rhythm",
+  "global": "none",
+  "leads": {
+   "I": "norm",
+   "II": "norm",
+   "III": "norm",
+   "aVR": "norm",
+   "aVL": "norm",
+   "aVF": "norm",
+   "V1": "norm",
+   "V2": "norm",
+   "V3": "norm",
+   "V4": "norm",
+   "V5": "norm",
+   "V6": "norm"
+  }
+ },
+ "ecg-002": {
+  "name": "Sinus bradycardia",
+  "global": "Sinus bradycardia at 46 bpm - spec.rate=46 is the ONLY override, and it acts solely in buildRhythm's 'sinus' branch to widen RR from 833 to ~1300 ms; computeLead output is bit-identical to ecg-001 normal sinus in all 12 leads (no flags, no leadOverride, stMag=0, stock normalPrecordial). Secondary engine artifact: tOffset/tSig are not rate-corrected, so QT stays ~345 ms and the rendered QTc is ~302 ms in every lead.",
+  "leads": {
+   "I": "either",
+   "II": "either",
+   "III": "either",
+   "aVR": "either",
+   "aVL": "either",
+   "aVF": "either",
+   "V1": "either",
+   "V2": "either",
+   "V3": "either",
+   "V4": "either",
+   "V5": "either",
+   "V6": "either"
+  }
+ },
+ "ecg-003": {
+  "name": "Sinus tachycardia",
+  "global": "Sinus tachycardia: global rate 122 bpm (RR ~492 ms, regular) via spec.rate; conduction is otherwise normal sinus (P before every QRS, constant PR 150 ms, QRS 90 ms) and no morphologic abnormality is rendered in any of the 12 leads.",
+  "leads": {
+   "I": "either",
+   "II": "either",
+   "III": "either",
+   "aVR": "either",
+   "aVL": "either",
+   "aVF": "either",
+   "V1": "either",
+   "V2": "either",
+   "V3": "either",
+   "V4": "either",
+   "V5": "either",
+   "V6": "either"
+  }
+ },
+ "ecg-004": {
+  "name": "Atrial fibrillation",
+  "global": "Atrial fibrillation: buildRhythm's 'afib' branch emits zero pEvents (no P waves anywhere), installs a continuous fibrillatory baseline via makeFibBaseline applied to every lead in sampleLead, and spaces vEvents at rr*(0.55+rng()*0.9) producing irregularly irregular RR (measured CV 0.235, 385-787 ms) visible in all 12 leads. spec has no flags, no leadOverride, stMag 0, and the stock normalPrecordial template, so there are no focal findings at all.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "abn",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-005": {
+  "name": "Atrial flutter",
+  "global": "Atrial flutter: buildRhythm's 'flutter' case emits zero pEvents (no P wave in any lead) and installs makeFlutterBaseline as atrialCont, adding a 300/min sawtooth to all 12 leads, with ventricular events locked to a fixed 800 ms (4:1, 75 bpm)",
+  "leads": {
+   "I": "either",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-006": {
+  "name": "Supraventricular tachycardia (AVNRT)",
+  "global": "Regular narrow-complex tachycardia at 185/min (RR 324 ms) with complete absence of P waves in all 12 leads: buildRhythm case 'svt' emits vEvents only, pEvents stays empty and atrialCont is null, and the branch omits jitter() so RR is metronomic; the 324 ms cycle also leaves the prior T (center q0+235, sigma 54) still ~33% of peak when the next QRS fires, so no lead returns to an isoelectric TP/PR segment. computeLead output is byte-identical to normal (no flags, no leadOverride, stMag 0, qrsWidth 90).",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-007": {
+  "name": "Ventricular tachycardia",
+  "global": "Monomorphic ventricular tachycardia: regular wide-complex tachycardia at 165/min with complete absence of P waves in all 12 leads. buildRhythm's 'vt' branch emits vEvents only (pEvents.length === 0, atrialCont null) at RR 363.6 ms, and QRS width is compounded globally as p.qrsScale (170/90 = 1.889) times the event's widthScale 2.2 = 4.16x normal, stretching every Gaussian's mu and sigma in every lead to a rendered QRS of roughly 250 ms.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-008": {
+  "name": "Ventricular fibrillation",
+  "global": "Ventricular fibrillation: buildRhythm case 'vfib' returns empty pEvents and empty vEvents, so no P, QRS, ST or T is drawn in any lead, and the sampleLead vfibComps generator replaces the entire trace with 3-9 Hz chaotic deflections (measured 3.0-4.0 mV p-p, 0.58-0.80 mV RMS in every one of the 12 leads).",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "abn",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-009": {
+  "name": "First-degree AV block",
+  "global": "Prolonged PR interval (spec.pr = 260 ms): buildRhythm's 'avblock1' branch is identical to 'sinus' except it places every QRS 260 ms after its P, so the rendered PR is ~253 ms onset-to-onset (P-peak to R-peak ~238 ms) with 1:1 conduction in all 12 leads. No morphologic abnormality exists anywhere: flags {}, leadOverride {}, stMag 0, axis 60, normal precordial template, and computeLead output is identical to normal sinus (ecg-001) in every lead.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-010": {
+  "name": "Mobitz I (Wenckebach)",
+  "global": "Mobitz I (Wenckebach) AV conduction: buildRhythm's 'wenckebach' case emits P waves at a fixed 833 ms (atrialRate 72) with prCycle [180, 240, 320] ms and every 4th P non-conducted, producing progressive PR lengthening, a dropped QRS and group beating (measured RR 893 / 913 / 1527 ms). QRS-T morphology is unchanged from normal in all 12 leads.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-011": {
+  "name": "Mobitz II",
+  "global": "Mobitz II second-degree AV block rendered by buildRhythm's 'mobitz2' branch: sinus P events every 800 ms (75/min) with fixed PR 160 ms, but vEvents suppressed whenever j%3===2, producing 3:2 conduction (RR 800/1600/800/1600, ventricular rate ~50). sampleLead renders this identical event train in every lead over the same 0-2500 ms window, so all 12 panels contain the non-conducted P at 1850 ms and the ensuing pause. computeLead output is byte-identical to normal sinus in all 12 leads (flags {}, leadOverride {}, stMag 0, axis 60, unmodified normalPrecordial template), so there is NO focal abnormality whatsoever - the rhythm is the sole and global finding.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-012": {
+  "name": "Third-degree (complete) AV block",
+  "global": "Complete AV dissociation: buildRhythm case 'chb' emits two uncoupled event trains (P at 82/min every 732 ms, QRS at 38/min every 1579 ms) shared by all 12 leads, combined with a globally widened escape QRS from spec.qrsWidth 130 (qrsScale 1.444 in computeLead for every lead) at a ventricular rate of 38 bpm. There is no focal content whatsoever: no leadOverride, no precordial override, no flags, and stMag/stAxis remain 0.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-013": {
+  "name": "Right bundle branch block (RBBB)",
+  "global": "Effectively none at reader level: the only global spec property is qrsWidth 130 (qrsScale 1.444x applied in computeLead to every lead), but the engine's Gaussian template renders at ~0.55x nominal, so leads without a qrsComps override measure only 60-83 ms (vs 41-57 ms in the nominal-90 normal case) - never crossing 120 ms. Rhythm is plain sinus 72 with fixed PR 160, stAxis/stMag = 0, flags = {}. All readable abnormality is carried by leadOverride on I, V1, V2, V6.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-014": {
+  "name": "Left bundle branch block (LBBB)",
+  "global": "QRS duration prolonged to 150 ms in every lead (spec.qrsWidth=150 sets p.qrsScale=150/90=1.667 in computeLead, and qrsTAt scales every component's mu and sigma by it, including the leadOverride qrsComps branch); rhythm is plain sinus at 74 with PR 160, so rate/rhythm are normal",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "either",
+   "aVR": "abn",
+   "aVL": "abn",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-015": {
+  "name": "Wolff-Parkinson-White (WPW)",
+  "global": "Ventricular pre-excitation (WPW): global spec.pr=105 ms short PR, global spec.qrsWidth=118 ms (qrsScale 1.311), and the global flags.deltaWPW delta wave applied in computeLead to all 12 leads; rendered QRS duration rises from 40-56 ms to 118-132 ms in every lead, with no focal content at all (stMag=0, leadOverride={}, stock normalPrecordial, rhythm sinus at rate 72).",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "abn",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-016": {
+  "name": "Acute anterior STEMI (LAD)",
+  "global": "none",
+  "leads": {
+   "I": "norm",
+   "II": "norm",
+   "III": "norm",
+   "aVR": "norm",
+   "aVL": "norm",
+   "aVF": "norm",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "either",
+   "V6": "norm"
+  }
+ },
+ "ecg-017": {
+  "name": "Acute inferior STEMI (RCA)",
+  "global": "none (spec omits rhythm/flags/qrsWidth, so buildRhythm runs the plain 'sinus' branch with PR 190 ms and QRS 90 ms; the only global property is rate 58/min, a borderline sinus bradycardia that does not by itself make any lead's morphology abnormal)",
+  "leads": {
+   "I": "either",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "either",
+   "aVL": "abn",
+   "aVF": "abn",
+   "V1": "norm",
+   "V2": "norm",
+   "V3": "norm",
+   "V4": "norm",
+   "V5": "norm",
+   "V6": "norm"
+  }
+ },
+ "ecg-018": {
+  "name": "Acute lateral STEMI (LCx)",
+  "global": "none",
+  "leads": {
+   "I": "abn",
+   "II": "norm",
+   "III": "abn",
+   "aVR": "either",
+   "aVL": "abn",
+   "aVF": "either",
+   "V1": "norm",
+   "V2": "norm",
+   "V3": "norm",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-019": {
+  "name": "Posterior MI",
+  "global": "none",
+  "leads": {
+   "I": "norm",
+   "II": "norm",
+   "III": "norm",
+   "aVR": "norm",
+   "aVL": "norm",
+   "aVF": "norm",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "norm",
+   "V5": "norm",
+   "V6": "norm"
+  }
+ },
+ "ecg-020": {
+  "name": "NSTEMI / ischemia (ST depression, TWI)",
+  "global": "none",
+  "leads": {
+   "I": "abn",
+   "II": "either",
+   "III": "norm",
+   "aVR": "norm",
+   "aVL": "either",
+   "aVF": "norm",
+   "V1": "norm",
+   "V2": "norm",
+   "V3": "norm",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-021": {
+  "name": "Left ventricular hypertrophy (LVH)",
+  "global": "none",
+  "leads": {
+   "I": "abn",
+   "II": "norm",
+   "III": "norm",
+   "aVR": "either",
+   "aVL": "abn",
+   "aVF": "either",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "either",
+   "V4": "norm",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-022": {
+  "name": "Right ventricular hypertrophy (RVH)",
+  "global": "none - rhythm is plain 'sinus' at 86 bpm with flags {}, leadOverride {}, qrsWidth 90 and stMag 0, so nothing in the spec touches all 12 leads; axis 115 is limb-only because precordial leads read from spec.precordial, not the axis vector",
+  "leads": {
+   "I": "abn",
+   "II": "either",
+   "III": "norm",
+   "aVR": "either",
+   "aVL": "either",
+   "aVF": "norm",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "norm",
+   "V4": "norm",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-023": {
+  "name": "Hyperkalemia",
+  "global": "Global peaked/tented T waves plus flattened P waves in all 12 leads: flags.peakedT forces every lead's T to >=0.75 mV with tSig narrowed 54->26 (FWHM 127->61 ms) and flags.lowP scales every P to 25%, on a sinus rhythm with PR 210 ms and qrsWidth 118 ms (both global). No leadOverride, no precordial edits, stMag 0 - so there is no focal component at all.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "abn",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-024": {
+  "name": "Hypokalemia",
+  "global": "Global repolarization abnormality: flattened T waves with prominent U waves in all 12 leads (flags flatT + uWave applied to every lead inside computeLead). Rhythm, rate (76), PR (160) and QRS width (90) are all normal, so the ST depressions in II/V4/V5 are focal add-ons, not the global finding.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "either",
+   "aVR": "either",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-025": {
+  "name": "Acute pericarditis",
+  "global": "PR-segment depression from flags.prDep, applied in computeLead to all 12 leads (0.06 mV depression, sign-inverted to PR elevation in aVR)",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "either",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-026": {
+  "name": "Brugada syndrome (type 1)",
+  "global": "none",
+  "leads": {
+   "I": "norm",
+   "II": "norm",
+   "III": "norm",
+   "aVR": "norm",
+   "aVL": "norm",
+   "aVF": "norm",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "norm",
+   "V4": "norm",
+   "V5": "norm",
+   "V6": "norm"
+  }
+ },
+ "ecg-027": {
+  "name": "Pulmonary embolism (right heart strain)",
+  "global": "Sinus tachycardia at 112 bpm (spec.rate=112, spec.rhythm='sinus' -> buildRhythm emits 1:1 P/QRS at RR 536 ms); rate is the only property affecting all 12 leads. spec.axis=100 (right axis deviation) is global to the 6 limb leads only, since computeLead projects axis onto LIMB_ANGLE but uses the fixed normalPrecordial() template for V1-V6. spec.stMag=0, so no reciprocal ST change is rendered in any lead, and spec.flags is empty.",
+  "leads": {
+   "I": "abn",
+   "II": "either",
+   "III": "either",
+   "aVR": "either",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "either",
+   "V5": "either",
+   "V6": "either"
+  }
+ },
+ "ecg-028": {
+  "name": "Long QT syndrome",
+  "global": "Prolonged QT: the global `longQT` flag in computeLead (line 279) shifts the T gaussian from q0+235 to q0+345 ms and widens tSig 54->72 in every lead, yielding a rendered QT of roughly 490 ms at RR 882 ms (QTc ~530). No rhythm change, no leadOverride, no precordial override, and stMag 0, so there is no focal content whatsoever.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "either",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "either",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-029": {
+  "name": "Torsades de pointes",
+  "global": "Polymorphic wide-complex tachycardia (torsades): rate 240/min with RR 250 ms, complete absence of P waves (buildRhythm 'torsades' emits pEvents = [] and only vEvents), QRS widened ~3.2x normal (qrsWidth 150 -> qrsScale 1.667 multiplied by the event's widthScale 1.9), with beat-to-beat amplitude modulation (ampScale 0.6-1.5) and a polarity reversal partway through the strip; T waves at tOffset 235 ms fuse into the next QRS at RR 250 ms, so no lead has an isoelectric baseline.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "abn",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "abn",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ },
+ "ecg-030": {
+  "name": "Digitalis effect",
+  "global": "Short QT (spec.flags.shortQT), applied inside computeLead to all 12 leads: tOffset 235 to 165 ms and tSig 54 to 46, yielding QT ~288 ms / QTc ~302 ms at rate 66 (normal control 377/396), with the T's rising limb effacing the ST segment in every lead.",
+  "leads": {
+   "I": "abn",
+   "II": "abn",
+   "III": "either",
+   "aVR": "abn",
+   "aVL": "either",
+   "aVF": "abn",
+   "V1": "either",
+   "V2": "abn",
+   "V3": "abn",
+   "V4": "abn",
+   "V5": "abn",
+   "V6": "abn"
+  }
+ }
+}

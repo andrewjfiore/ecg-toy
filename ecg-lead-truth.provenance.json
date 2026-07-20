@@ -1,0 +1,1241 @@
+{
+ "generated": "workflow wf_0c66db04-da6",
+ "method": "derived from ecg-engine.js spec, verified by independent cardiology-correctness and render-match reviewers; disputed or reader-dependent leads set to either and excluded from grading",
+ "cases": [
+  {
+   "id": "ecg-001",
+   "name": "Normal sinus rhythm",
+   "globalAbnormality": "none",
+   "leads": {
+    "I": "norm",
+    "II": "norm",
+    "III": "norm",
+    "aVR": "norm",
+    "aVL": "norm",
+    "aVF": "norm",
+    "V1": "norm",
+    "V2": "norm",
+    "V3": "norm",
+    "V4": "norm",
+    "V5": "norm",
+    "V6": "norm"
+   },
+   "rationale": {
+    "I": "sinus event train with constant PR 160 ms and stMag 0; axis +60 projects R 0.675 with upright P and T",
+    "II": "lead angle 60 equals spec.axis 60 so R is maximal at 1.35 mV with upright P 0.12 and T 0.33, no flags applied",
+    "III": "projection gives R 0.675 and a low but upright T (+0.061) since tAxis 40 is 80 degrees off the III axis, a physiologic flat T",
+    "aVR": "project(-150,60) is negative so the netR<0 branch renders rS with P -0.109 and T -0.345, the physiologic aVR inversion, and stMag 0 leaves no reciprocal ST",
+    "aVL": "axis +60 is perpendicular to aVL so netR computes to exactly 0, producing the expected isoelectric ~2 mm complex for a vertical normal axis",
+    "aVF": "projection yields R 1.169 with upright P and T; no leadOverride and stMag 0",
+    "V1": "unmodified normalPrecordial template gives rS (r 0.20, S -1.05) with the physiologic shallow T of -0.03",
+    "V2": "default precordial template r 0.45 / S -1.65 / T +0.42, no precordial override in spec",
+    "V3": "template r 0.75 / S -1.05 places the transition zone at V3-V4 with upright T 0.52",
+    "V4": "template R 1.20 / S -0.55 continues normal R-wave progression, no ST term since stMag is 0",
+    "V5": "template R 1.35 with septal q -0.06 and T 0.42; Sokolow-Lyon S(V1)+R(V5) = 2.40 mV, below the 3.5 mV LVH cutoff",
+    "V6": "template R 1.05 with septal q -0.06 and upright T 0.36, completing normal progression with no flags or overrides"
+   },
+   "gradedCount": 12
+  },
+  {
+   "id": "ecg-002",
+   "name": "Sinus bradycardia",
+   "globalAbnormality": "Sinus bradycardia at 46 bpm - spec.rate=46 is the ONLY override, and it acts solely in buildRhythm's 'sinus' branch to widen RR from 833 to ~1300 ms; computeLead output is bit-identical to ecg-001 normal sinus in all 12 leads (no flags, no leadOverride, stMag=0, stock normalPrecordial). Secondary engine artifact: tOffset/tSig are not rate-corrected, so QT stays ~345 ms and the rendered QTc is ~302 ms in every lead.",
+   "leads": {
+    "I": "either",
+    "II": "either",
+    "III": "either",
+    "aVR": "either",
+    "aVL": "either",
+    "aVF": "either",
+    "V1": "either",
+    "V2": "either",
+    "V3": "either",
+    "V4": "either",
+    "V5": "either",
+    "V6": "either"
+   },
+   "rationale": {
+    "I": "computeLead(I) is identical to normal sinus (P 0.069, R 0.675, T 0.268, st 0 since stMag=0); the only deviation is the global buildRhythm RR of ~1300 ms.",
+    "II": "Projection at 60 deg gives the full normal upright P 0.120 / R 1.350 / T 0.329 with no ST vector; only the global rate change is visible.",
+    "III": "Normal projection at 120 deg (P 0.051, R 0.675, low-normal upright T 0.061) unchanged from ecg-001; abnormality is the global RR alone.",
+    "aVR": "project(-150,60,1.35) = -1.169 takes the netR<0 branch giving textbook-normal aVR (r 0.108, S -1.277, inverted P -0.109 and T -0.345), and stMag=0 leaves no reciprocal ST, so only the global rate remains.",
+    "aVL": "project(-30,60,1.35) = 0 exactly, so the axis is perpendicular and aVL renders a tiny net-negative qrS with upright T 0.120 - physiologic and identical to the engine's normal case; only the global rate deviates.",
+    "aVF": "Normal 90 deg projection (P 0.098, R 1.169, T 0.225) with no ST vector; the sole finding is the global RR of ~1300 ms.",
+    "V1": "Stock normalPrecordial rS (r 0.20, S -1.05, T -0.03) with no precordial override or st term; only the global rate differs.",
+    "V2": "Stock normalPrecordial template (r 0.45, S -1.65, T 0.42) untouched by spec, so morphology is normal and only the global rate is abnormal.",
+    "V3": "Stock normalPrecordial transition (r 0.75, S -1.05, T 0.52) with no override; the only deviation is the global buildRhythm RR.",
+    "V4": "Stock normalPrecordial (r 1.20, S -0.55, T 0.50) preserving normal R-wave progression; only the global rate is abnormal.",
+    "V5": "Stock normalPrecordial with physiologic septal q -0.06 (r 1.35, T 0.42) and no st term; the only finding is the global rate.",
+    "V6": "Stock normalPrecordial with septal q -0.06 (r 1.05, S -0.14, T 0.36); no flag or override touches it, leaving the global RR as the sole deviation."
+   },
+   "gradedCount": 0
+  },
+  {
+   "id": "ecg-003",
+   "name": "Sinus tachycardia",
+   "globalAbnormality": "Sinus tachycardia: global rate 122 bpm (RR ~492 ms, regular) via spec.rate; conduction is otherwise normal sinus (P before every QRS, constant PR 150 ms, QRS 90 ms) and no morphologic abnormality is rendered in any of the 12 leads.",
+   "leads": {
+    "I": "either",
+    "II": "either",
+    "III": "either",
+    "aVR": "either",
+    "aVL": "either",
+    "aVF": "either",
+    "V1": "either",
+    "V2": "either",
+    "V3": "either",
+    "V4": "either",
+    "V5": "either",
+    "V6": "either"
+   },
+   "rationale": {
+    "I": "Limb projection of axis 60 onto 0 deg gives R 0.675 with q -0.068/s -0.176 and stMag 0 adds no ST, so the trace is numerically identical to ecg-001 and the only deviation is the global rate.",
+    "II": "Projection onto 60 deg gives R 1.350 with upright P 0.120 and T 0.329 and no leadOverride or ST vector, so only the global rate differs, though the appended 10 s lead II rhythm strip makes that rate easiest to count here.",
+    "III": "Projection onto 120 deg gives R 0.675 and T 0.061 with stMag 0 and no leadOverride, leaving morphology identical to the engine's normal case and rate as the sole finding.",
+    "aVR": "project(-150,60,1.35) = -1.169 takes the negative branch rendering r 0.108/S -1.277 with P -0.109 and T -0.345, which is the textbook normal aVR, and stMag 0 means no reciprocal ST is added, so only the global rate is abnormal.",
+    "aVL": "Axis 60 is perpendicular to aVL's -30 deg so project() returns R 0.000, leaving a physiologically expected isoelectric q/s complex that is identical to ecg-001 rather than a rendered abnormality; rate is the only finding.",
+    "aVF": "Projection onto 90 deg gives R 1.169 with upright P 0.098 and T 0.225 and zero ST vector, so morphology matches the normal case and only the global rate deviates.",
+    "V1": "No spec.precordial override, so the stock normalPrecordial() template renders r 0.20/S -1.05 with the normal-variant T -0.03, and with no atrialCont or flags the only deviation is the global rate.",
+    "V2": "Untouched normalPrecordial() template gives r 0.45/S -1.65 and upright T 0.42, so the lead is morphologically the engine's normal and rate is the sole abnormality.",
+    "V3": "Stock precordial template renders r 0.75/S -1.05 with T 0.52 in the normal transition zone, unchanged from ecg-001, leaving only the global rate.",
+    "V4": "Template values r 1.20/S -0.55 with T 0.50 give normal R-wave progression and no leadOverride or ST is applied, so rate is the only finding.",
+    "V5": "Template renders r 1.35/S -0.28 with septal q -0.06 and T 0.42, identical to the normal case since no precordial or leadOverride entry exists; rate alone deviates.",
+    "V6": "Template renders r 1.05/S -0.14 with septal q -0.06 and T 0.36, completing normal progression with no ST vector or flags, so the global rate is the only abnormality."
+   },
+   "gradedCount": 0
+  },
+  {
+   "id": "ecg-004",
+   "name": "Atrial fibrillation",
+   "globalAbnormality": "Atrial fibrillation: buildRhythm's 'afib' branch emits zero pEvents (no P waves anywhere), installs a continuous fibrillatory baseline via makeFibBaseline applied to every lead in sampleLead, and spaces vEvents at rr*(0.55+rng()*0.9) producing irregularly irregular RR (measured CV 0.235, 385-787 ms) visible in all 12 leads. spec has no flags, no leadOverride, stMag 0, and the stock normalPrecordial template, so there are no focal findings at all.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "abn",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "global afib rhythm: no P events rendered, 5.5 mm p-p fibrillatory baseline from atrialCont (scale 1.0), and irregularly irregular QRS spacing",
+    "II": "global afib rhythm: the normally largest limb P (project(60,55,0.12)=0.120 mV) is absent, replaced by 5.5 mm fibrillatory baseline, with irregular RR",
+    "III": "global afib rhythm: P absent (normally 0.051 mV by hexaxial projection), atrialCont baseline at scale 1.0, irregular RR",
+    "aVR": "global afib rhythm: the normally inverted aVR P (project(-150,55,0.12)=-0.109 mV) is gone, atrialCont still renders 2.7 mm p-p at the aVR 0.5 scale, and RR is irregularly irregular",
+    "aVL": "global afib rhythm: though the normal aVL P is only 0.010 mV so its loss is undetectable, atrialCont paints a 5.5 mm chaotic baseline and QRS spacing is irregularly irregular",
+    "aVF": "global afib rhythm: P absent (normally 0.098 mV), 5.5 mm fibrillatory baseline at scale 1.0, irregular RR",
+    "V1": "global afib rhythm plus makeFibBaseline's 1.6x V1 scale gives the coarsest baseline (8.8 mm p-p) with no P waves and irregular RR",
+    "V2": "global afib rhythm plus the same 1.6x V1/V2 scale in makeFibBaseline yields 8.8 mm p-p fibrillatory baseline, absent P, irregular RR",
+    "V3": "global afib rhythm: precordial template untouched but atrialCont adds a 5.5 mm baseline with no P waves and irregularly irregular RR",
+    "V4": "global afib rhythm: no P events, 5.5 mm atrialCont baseline at scale 1.0, irregular QRS spacing",
+    "V5": "global afib rhythm: no P events, 5.5 mm atrialCont baseline, irregularly irregular RR; precordial V5 morphology itself is the normal template",
+    "V6": "global afib rhythm: no P events, 5.5 mm atrialCont baseline at scale 1.0, irregular RR despite normal R-wave morphology"
+   },
+   "gradedCount": 12
+  },
+  {
+   "id": "ecg-005",
+   "name": "Atrial flutter",
+   "globalAbnormality": "Atrial flutter: buildRhythm's 'flutter' case emits zero pEvents (no P wave in any lead) and installs makeFlutterBaseline as atrialCont, adding a 300/min sawtooth to all 12 leads, with ventricular events locked to a fixed 800 ms (4:1, 75 bpm)",
+   "leads": {
+    "I": "either",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "pEvents is empty so the normally visible 0.69 mm lead-I P is absent, plus a 0.64 mm flutter ripple from the pol=0.2 tier of makeFlutterBaseline",
+    "II": "makeFlutterBaseline assigns pol=-1 to II, rendering a 3.2 mm negative sawtooth on top of absent P waves",
+    "III": "makeFlutterBaseline assigns pol=-1 to III, rendering a 3.2 mm negative sawtooth on top of absent P waves",
+    "aVR": "makeFlutterBaseline assigns pol=+1 to aVR (same full tier as V1), a 3.2 mm positive sawtooth, and the normal -1.09 mm aVR P is gone because pEvents is empty",
+    "aVL": "flutter pol=0.2 gives only a 0.64 mm ripple and aVL's normal P projects to just 0.10 mm, so P-loss is invisible and the lead is genuinely reader-dependent",
+    "aVF": "makeFlutterBaseline assigns pol=-1 to aVF, rendering a 3.2 mm negative sawtooth on top of absent P waves",
+    "V1": "makeFlutterBaseline assigns pol=+1 to V1, rendering a 3.2 mm positive sawtooth replacing the absent precordial P",
+    "V2": "falls to the makeFlutterBaseline pol=0.4 branch, a 1.28 mm sawtooth measured across the TP segment, with no P wave since pEvents is empty",
+    "V3": "falls to the makeFlutterBaseline pol=0.4 branch, a 1.28 mm sawtooth measured across the TP segment, with no P wave since pEvents is empty",
+    "V4": "falls to the makeFlutterBaseline pol=0.4 branch, a 1.28 mm sawtooth measured across the TP segment, with no P wave since pEvents is empty",
+    "V5": "falls to the makeFlutterBaseline pol=0.4 branch, a 1.28 mm sawtooth measured across the TP segment, with no P wave since pEvents is empty",
+    "V6": "falls to the makeFlutterBaseline pol=0.4 branch, a 1.28 mm sawtooth measured across the TP segment, with no P wave since pEvents is empty"
+   },
+   "gradedCount": 10
+  },
+  {
+   "id": "ecg-006",
+   "name": "Supraventricular tachycardia (AVNRT)",
+   "globalAbnormality": "Regular narrow-complex tachycardia at 185/min (RR 324 ms) with complete absence of P waves in all 12 leads: buildRhythm case 'svt' emits vEvents only, pEvents stays empty and atrialCont is null, and the branch omits jitter() so RR is metronomic; the 324 ms cycle also leaves the prior T (center q0+235, sigma 54) still ~33% of peak when the next QRS fires, so no lead returns to an isoelectric TP/PR segment. computeLead output is byte-identical to normal (no flags, no leadOverride, stMag 0, qrsWidth 90).",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "P projection 0.069 mV (0.7 mm) is rendered nowhere because pEvents is empty, and the 324 ms cycle leaves the T tail 0.9 mm above baseline at the next QRS",
+    "II": "the largest normal P (project(60,55,0.12)=0.120 mV, 1.2 mm) is entirely absent since buildRhythm 'svt' pushes no pEvents, over metronomic 324 ms RR",
+    "III": "normal 0.5 mm P is gone (empty pEvents) leaving a flat dead TP segment between narrow QRSs at 324 ms, even though its small T (0.061 mV) produces little fusion",
+    "aVR": "projection math gives netR=1.35*cos(210)=-1.17 so QRS/T are normal-for-aVR, but the normally conspicuous 1.1 mm negative P (project(-150,55,0.12)=-0.109) is absent and the inverted T is still -1.1 mm at the next QRS; stMag=0 so this is pure rhythm, not the reciprocal-ST aVR carve-out",
+    "aVL": "netR=1.35*cos(90)=0 gives a near-isoelectric QRS and the normal P projection is only 0.010 mV (0.1 mm, below the 0.014 mV noise floor), so absent-P is undetectable here and the sole readable abnormality is global rate",
+    "aVF": "normal 0.098 mV (1.0 mm) P projection is absent from the empty pEvents train and the T tail sits 0.7 mm off baseline at the next QRS",
+    "V1": "precordial template P of 0.04 mV is never drawn (pEvents empty), so the lead most used for P inspection shows rS complexes every 324 ms on a flat empty baseline",
+    "V2": "template P 0.06 mV absent plus the largest fusion effect in this lead group, T (0.42 mV) still 1.4 mm elevated when the next QRS starts at 324 ms",
+    "V3": "template P 0.06 mV absent and T 0.52 mV leaves 1.7 mm of residual elevation into the next QRS, so no isoelectric TP segment exists",
+    "V4": "template P 0.05 mV never rendered and T 0.50 mV leaves 1.6 mm residual at the next QRS from the 324 ms cycle",
+    "V5": "template P 0.05 mV absent from the empty atrial train and T 0.42 mV merges 1.4 mm into the following QRS",
+    "V6": "template P 0.04 mV absent and T 0.36 mV still 1.2 mm above baseline at the next QRS, over regular 324 ms narrow complexes"
+   },
+   "gradedCount": 11
+  },
+  {
+   "id": "ecg-007",
+   "name": "Ventricular tachycardia",
+   "globalAbnormality": "Monomorphic ventricular tachycardia: regular wide-complex tachycardia at 165/min with complete absence of P waves in all 12 leads. buildRhythm's 'vt' branch emits vEvents only (pEvents.length === 0, atrialCont null) at RR 363.6 ms, and QRS width is compounded globally as p.qrsScale (170/90 = 1.889) times the event's widthScale 2.2 = 4.16x normal, stretching every Gaussian's mu and sigma in every lead to a rendered QRS of roughly 250 ms.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "Global vt rhythm gives zero pEvents and the 4.16x qrsScale-times-widthScale stretch, so the projected axis-60 complex (netR 0.675) renders broad and P-less at 165/min.",
+    "II": "Same global vt event train: tallest limb projection (netR 1.35) rendered as a 250 ms P-less complex with no isoelectric baseline between beats.",
+    "III": "Global widthScale 2.2 on qrsWidth 170 broadens the netR 0.675 complex to ~250 ms and buildRhythm supplies no atrial events, so no P precedes it.",
+    "aVR": "project(-150, 60, 1.35) = -1.169 takes computeLead's negative branch (r 0.108, s -1.277); that deep complex is aVR's normal shape at axis 60, but the global 4.16x widening and absent pEvents make it a grossly wide P-less deflection, not a reciprocal-ST artifact.",
+    "aVL": "netR = 1.35*cos(90) = 0 leaves a q/s-only ~0.25 mV complex, but the same global 4.16x stretch and empty pEvents render it as a continuous broad P-less undulation with no isoelectric segment, unlike the narrow QS plus flat baseline this lead shows in ecg-001.",
+    "aVF": "Projection netR 1.169 widened 4.16x by the global qrsScale/widthScale product, with no pEvents from the vt branch to produce a P wave.",
+    "V1": "Precordial template is the untouched default, but qrsTAt scales its r 0.20 / s -1.05 mu and sigma by 4.16, yielding a ~250 ms P-less complex at 165/min.",
+    "V2": "Default precordial r 0.45 / s -1.65 stretched by the same global 4.16x factor; buildRhythm's vt branch supplies no atrial train so the P (b.p 0.06) is never emitted.",
+    "V3": "Global widthScale broadens the default r 0.75 / s -1.05 template to ~250 ms and the T at q0+235 merges into the next beat at RR 363.6 ms.",
+    "V4": "Untouched r 1.20 / s -0.55 template widened 4.16x by qrsScale times widthScale, with zero pEvents so no P wave renders.",
+    "V5": "Default r 1.35 / s -0.28 complex stretched to ~250 ms by the global width product; absent atrial events remove the P in this lead as in all others.",
+    "V6": "Same global mechanism: default r 1.05 / s -0.14 broadened 4.16x with no pEvents, giving a wide monomorphic P-less complex at 165/min."
+   },
+   "gradedCount": 11
+  },
+  {
+   "id": "ecg-008",
+   "name": "Ventricular fibrillation",
+   "globalAbnormality": "Ventricular fibrillation: buildRhythm case 'vfib' returns empty pEvents and empty vEvents, so no P, QRS, ST or T is drawn in any lead, and the sampleLead vfibComps generator replaces the entire trace with 3-9 Hz chaotic deflections (measured 3.0-4.0 mV p-p, 0.58-0.80 mV RMS in every one of the 12 leads).",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "abn",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "global vfib rhythm empties both event trains, so lead I renders only the chaotic vfibComps sum (3.01 mV p-p) with no organized QRS",
+    "II": "global vfib rhythm leaves vEvents empty, so the II trace is pure chaos (3.04 mV p-p) with no identifiable P, QRS or T",
+    "III": "global vfib rhythm suppresses all Gaussian wave events, leaving III as 3.04 mV p-p disorganized fibrillatory activity",
+    "aVR": "no reciprocal-projection nuance applies because vfib empties vEvents entirely; aVR renders 3.05 mV p-p of chaos with zero organized complexes, unambiguously abnormal",
+    "aVL": "global vfib rhythm means computeLead's projected amplitudes are never consumed, so aVL shows only chaotic 3.05 mV p-p deflections",
+    "aVF": "global vfib rhythm yields no ventricular events to project onto the hexaxial axis, leaving aVF as pure 3.05 mV p-p fibrillatory chaos",
+    "V1": "the normalPrecordial V1 template is never rendered because vEvents is empty; V1 shows 3.74 mV p-p chaotic activity instead",
+    "V2": "global vfib bypasses the precordial template entirely, so V2 is 3.76 mV p-p disorganized deflections with no R or T",
+    "V3": "global vfib empties the event trains, leaving V3 as 3.98 mV p-p chaos rather than any R-wave progression",
+    "V4": "global vfib means no qrsTAt call ever fires for V4; the trace is 3.84 mV p-p fibrillatory noise",
+    "V5": "global vfib suppresses the V5 precordial template, rendering only 3.36 mV p-p chaotic activity",
+    "V6": "global vfib leaves vEvents empty so V6 renders 3.84 mV p-p of chaos with no identifiable QRS or T"
+   },
+   "gradedCount": 12
+  },
+  {
+   "id": "ecg-009",
+   "name": "First-degree AV block",
+   "globalAbnormality": "Prolonged PR interval (spec.pr = 260 ms): buildRhythm's 'avblock1' branch is identical to 'sinus' except it places every QRS 260 ms after its P, so the rendered PR is ~253 ms onset-to-onset (P-peak to R-peak ~238 ms) with 1:1 conduction in all 12 leads. No morphologic abnormality exists anywhere: flags {}, leadOverride {}, stMag 0, axis 60, normal precordial template, and computeLead output is identical to normal sinus (ecg-001) in every lead.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "Shared event train from buildRhythm sets QRS 260 ms after each P, and pAxis 55 projects onto lead I at 0.069 mV (0.83 mm rendered), so the prolonged PR is measurable.",
+    "II": "Global 260 ms P-to-QRS offset with the largest upright P in the tracing (0.12 mV, 1.26 mm rendered) makes the long PR unmistakable.",
+    "III": "Same global event train, and pAxis 55 projects onto III's 120 degree axis at 0.051 mV (0.58 mm rendered), enough to time the prolonged PR.",
+    "aVR": "pAxis 55 projects onto aVR's -150 axis at -0.109 mV, rendering a 1.18 mm inverted P (normal aVR polarity), so the global 260 ms PR is cleanly measurable here, and stMag 0 means no reciprocal ST artifact confounds the call.",
+    "aVL": "pAxis 55 is nearly perpendicular to aVL's -30 axis so P projects to only 0.010 mV (0.10 mm) against a 0.64 mm baseline-wander plus noise floor, and netR is exactly 0 giving an isoelectric QRS, so the sole abnormality (PR) is unreadable in this lead.",
+    "aVF": "Global 260 ms P-to-QRS offset with P projecting at 0.098 mV (0.99 mm rendered) onto aVF's 90 degree axis, so the prolonged PR is directly measurable.",
+    "V1": "Precordial template p 0.04 mV renders a 0.48 mm P, and the same global event train places the QRS 260 ms later, so PR is prolonged here as in every lead.",
+    "V2": "Precordial template p 0.06 mV renders a 0.64 mm P against the shared 260 ms P-to-QRS offset; measured P-to-R was 260 ms.",
+    "V3": "Precordial template p 0.06 mV renders a 0.71 mm P, and buildRhythm's global 260 ms PR applies to this lead's QRS timing identically.",
+    "V4": "Precordial template p 0.05 mV renders a 0.60 mm P with the same global 260 ms P-to-QRS offset, so the PR is prolonged.",
+    "V5": "Precordial template p 0.05 mV renders a 0.54 mm P, and the shared event train places QRS 260 ms after it.",
+    "V6": "Precordial template p 0.04 mV renders a 0.47 mm P with the global 260 ms P-to-QRS offset (P-to-R measured 238 ms), so the long PR is readable."
+   },
+   "gradedCount": 11
+  },
+  {
+   "id": "ecg-010",
+   "name": "Mobitz I (Wenckebach)",
+   "globalAbnormality": "Mobitz I (Wenckebach) AV conduction: buildRhythm's 'wenckebach' case emits P waves at a fixed 833 ms (atrialRate 72) with prCycle [180, 240, 320] ms and every 4th P non-conducted, producing progressive PR lengthening, a dropped QRS and group beating (measured RR 893 / 913 / 1527 ms). QRS-T morphology is unchanged from normal in all 12 leads.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "Shared wenckebach pEvents/vEvents train renders PR lengthening 180-240-320 ms, and the P projects to 0.68 mm here so it is readable.",
+    "II": "Global wenckebach rhythm with the largest projected P (1.19 mm), and lead II is also the 10 s rhythm strip that shows the dropped QRS and 1527 ms pause.",
+    "III": "Same global event train; P projects to 0.50 mm, enough to see PR march out 180-240-320 ms.",
+    "aVR": "project(-150, pAxis 55, 0.12) gives a well-formed 1.08 mm inverted P (normal polarity) that renders PR clearly, and stMag=0 means no reciprocal ST confounder, so the conduction finding is plainly measurable.",
+    "aVL": "pAxis 55 is 85 degrees off the aVL axis so P projects to only 0.10 mm, below the engine's own noise floor, leaving the PR lengthening unreadable and the 3-beat RR (893/913) apparently regular.",
+    "aVF": "Global wenckebach train with P projecting to 0.97 mm, so progressive PR prolongation is directly visible.",
+    "V1": "Precordial template P of 0.40 mm on the same global pEvents train renders the 180-240-320 ms PR march; QRS/ST morphology is untouched.",
+    "V2": "Template P 0.59 mm with the shared wenckebach vEvents, so PR lengthening to a frankly prolonged 320 ms is visible.",
+    "V3": "Template P 0.59 mm; the global event train imposes the same progressive PR prolongation here as everywhere.",
+    "V4": "Template P 0.50 mm; abnormality is the global rhythm, not any precordial or leadOverride change (both are default).",
+    "V5": "Template P 0.50 mm with the shared wenckebach conduction pattern producing PR 180-240-320 ms.",
+    "V6": "Template P 0.40 mm, still readable, and driven by the same global pEvents/vEvents pairing that lengthens PR each beat."
+   },
+   "gradedCount": 11
+  },
+  {
+   "id": "ecg-011",
+   "name": "Mobitz II",
+   "globalAbnormality": "Mobitz II second-degree AV block rendered by buildRhythm's 'mobitz2' branch: sinus P events every 800 ms (75/min) with fixed PR 160 ms, but vEvents suppressed whenever j%3===2, producing 3:2 conduction (RR 800/1600/800/1600, ventricular rate ~50). sampleLead renders this identical event train in every lead over the same 0-2500 ms window, so all 12 panels contain the non-conducted P at 1850 ms and the ensuing pause. computeLead output is byte-identical to normal sinus in all 12 leads (flags {}, leadOverride {}, stMag 0, axis 60, unmodified normalPrecordial template), so there is NO focal abnormality whatsoever - the rhythm is the sole and global finding.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "Shared mobitz2 event train renders the non-conducted P at 1850 ms as a 0.66 mm deflection with no following QRS plus the open pause, on otherwise normal projected morphology (axis 60 onto 0 deg, stMag 0).",
+    "II": "Largest projected P (pAxis 55 nearly parallel to the 60 deg lead axis, 1.15 mm) makes the dropped beat and fixed PR most conspicuous here, driven by the global mobitz2 vEvent suppression.",
+    "III": "Global mobitz2 train drops the QRS after the 1850 ms P, which projects onto 120 deg at 0.49 mm and is visible above the 0.04 mm noise floor alongside the 12.4 mm-scale pause.",
+    "aVR": "Projection of pAxis 55 onto -150 deg gives a 1.05 mm NEGATIVE P, the second largest of any lead, so the non-conducted P and pause are frankly visible; stMag is 0 so there is no reciprocal-ST ambiguity that would justify 'either' here.",
+    "aVL": "Near-isoelectric by projection (axis 60 is perpendicular to -30 deg, QRS only 1.8 mm and P just 0.10 mm, both normal consequences of a normal axis), yet the global mobitz2 train still omits the beat, so the 1.6x pause is present though the dropped P itself is not resolvable.",
+    "aVF": "Global mobitz2 vEvent suppression leaves a 0.95 mm non-conducted P at 1850 ms with no QRS, against normal projected morphology and zero ST vector.",
+    "V1": "Precordial template is the unmodified normal one, but the shared event train renders the 0.38 mm dropped P and a clearly visible pause between 11.1 mm QRS complexes.",
+    "V2": "Normal precordial template unchanged; abnormality is entirely the global mobitz2 train showing a 0.58 mm non-conducted P and the missing QRS after 1210 ms.",
+    "V3": "Rhythm is global in sampleLead, so this panel carries the same 0.58 mm dropped P and pause despite a wholly normal R-wave-progression template.",
+    "V4": "Same 0-2500 ms event train renders the 0.48 mm non-conducted P and the absent beat; precordial entry identical to normalPrecordial().",
+    "V5": "buildRhythm's skipped vEvent produces the pause here as everywhere, with the 0.48 mm non-conducted P visible against a normal 14.9 mm QRS.",
+    "V6": "Global mobitz2 train drops the QRS after the 1850 ms P (0.38 mm, marginal but present) and the pause between 11.1 mm complexes is plain, on an unmodified normal template."
+   },
+   "gradedCount": 11
+  },
+  {
+   "id": "ecg-012",
+   "name": "Third-degree (complete) AV block",
+   "globalAbnormality": "Complete AV dissociation: buildRhythm case 'chb' emits two uncoupled event trains (P at 82/min every 732 ms, QRS at 38/min every 1579 ms) shared by all 12 leads, combined with a globally widened escape QRS from spec.qrsWidth 130 (qrsScale 1.444 in computeLead for every lead) at a ventricular rate of 38 bpm. There is no focal content whatsoever: no leadOverride, no precordial override, no flags, and stMag/stAxis remain 0.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "Global 'chb' train renders dissociated P waves at projected 0.069 mV (0.69 mm, ~5x the 0.014 mV noise floor) marching through wide 1.444x-scaled escape QRS complexes.",
+    "II": "Largest P projection (0.120 mV) makes the global 'chb' AV dissociation and walking 350-812 ms PR intervals maximally visible alongside the globally widened QRS.",
+    "III": "P projects to 0.051 mV (~4x noise floor), so the global 'chb' dissociated atrial train is visible on top of the global qrsWidth 130 widening.",
+    "aVR": "Projection math gives aVR |P| = 0.109 mV, the second-largest of any lead, so the global 'chb' dissociation is readable here as well as in II - abnormal for the primary finding, not a subtle reciprocal one (stMag is 0, so no ST projection exists).",
+    "aVL": "project(-30, 55, 0.12) yields P = 0.0105 mV (0.10 mm), below the measured 0.014 mV noise floor, so the defining dissociation is not rendered here at all, leaving only global rate plus the 1.444x qrsScale widening on a near-isoelectric 0.176 mV complex.",
+    "aVF": "P projects to 0.098 mV (~1 mm), rendering the global 'chb' dissociated atrial train clearly against the globally widened 1.444x escape QRS.",
+    "V1": "Normal precordial template P of 0.040 mV renders discrete marching bumps at the 732 ms atrial cadence (~3x noise floor) while the global qrsScale 1.444 widens the rS complex.",
+    "V2": "Template P of 0.060 mV shows the global 'chb' dissociated atrial train, and qrsWidth 130 widens the QRS to 82.5 ms rendered versus 57 ms normal.",
+    "V3": "Template P of 0.060 mV renders the dissociated atrial events, with the global 1.444x qrsScale widening the complex despite an otherwise untouched normalPrecordial morphology.",
+    "V4": "Template P of 0.050 mV carries the global 'chb' dissociation, and the global qrsScale 1.444 widens the QRS even though R-wave progression is unmodified.",
+    "V5": "Template P of 0.050 mV renders marching dissociated P waves at 82/min against 38/min wide QRS complexes from the global qrsWidth 130.",
+    "V6": "Template P of 0.040 mV renders visible dissociated atrial activity (~3x noise floor) plus the global 1.444x qrsScale widening of the escape complex."
+   },
+   "gradedCount": 11
+  },
+  {
+   "id": "ecg-013",
+   "name": "Right bundle branch block (RBBB)",
+   "globalAbnormality": "Effectively none at reader level: the only global spec property is qrsWidth 130 (qrsScale 1.444x applied in computeLead to every lead), but the engine's Gaussian template renders at ~0.55x nominal, so leads without a qrsComps override measure only 60-83 ms (vs 41-57 ms in the nominal-90 normal case) - never crossing 120 ms. Rhythm is plain sinus 72 with fixed PR 160, stAxis/stMag = 0, flags = {}. All readable abnormality is carried by leadOverride on I, V1, V2, V6.",
+   "leads": {
+    "I": "abn",
+    "II": "norm",
+    "III": "norm",
+    "aVR": "norm",
+    "aVL": "norm",
+    "aVF": "norm",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "norm",
+    "V4": "norm",
+    "V5": "norm",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "leadOverride.I qrsComps put R at 24 and a -0.4 S at mu 60/sigma 16, time-scaled by qrsScale 1.444, rendering a 130 ms complex with a broad slurred terminal S",
+    "II": "no leadOverride, stMag 0 so no projected ST, axis 60 gives a normal qRs (r 1.35) and upright T; global qrsWidth only renders 71 ms here",
+    "III": "no leadOverride and zero ST projection; renders the same 67 ms qRs with low-amplitude upright T as the engine's normal reference case",
+    "aVR": "projection math gives netR = 1.35*cos(210) = -1.169 so rS/QS, P = -0.109 and T = -0.345 (both normal inversions for aVR), stMag 0 means no reciprocal ST, and no override adds the real-world terminal R'",
+    "aVL": "netR = 1.35*cos(90) = 0 makes aVL the isoelectric perpendicular lead for a +60 axis, identical to the normal reference case, with no override or ST projection",
+    "aVF": "no leadOverride, zero ST projection, normal Rs from axis 60 and upright T; rendered width 70 ms",
+    "V1": "leadOverride.V1 qrsComps r/S/R' (0.25, -0.35, 0.85 at mu 12/34/66, scaled 1.444) render a 140 ms rSR' plus t: -0.28 giving discordant T inversion",
+    "V2": "leadOverride.V2 gives the same 139 ms rSR' morphology and t: -0.22, inverting a T wave the precordial template normally renders at +0.42",
+    "V3": "falls through to the unmodified normalPrecordial template (rS, T +0.52) with only the global qrsScale applied, rendering 83 ms - no terminal delay is added here",
+    "V4": "normalPrecordial template Rs with T +0.50, no leadOverride and no ST; rendered width 82 ms is within normal limits",
+    "V5": "normalPrecordial template (r 1.35, s -0.28, T +0.42) with no override, so the engine renders no slurred terminal S and only a 75 ms complex",
+    "V6": "leadOverride.V6 qrsComps add a -0.45 S at mu 62/sigma 16 which the 1.444 qrsScale stretches into a 128 ms complex with a broad terminal S"
+   },
+   "gradedCount": 12
+  },
+  {
+   "id": "ecg-014",
+   "name": "Left bundle branch block (LBBB)",
+   "globalAbnormality": "QRS duration prolonged to 150 ms in every lead (spec.qrsWidth=150 sets p.qrsScale=150/90=1.667 in computeLead, and qrsTAt scales every component's mu and sigma by it, including the leadOverride qrsComps branch); rhythm is plain sinus at 74 with PR 160, so rate/rhythm are normal",
+   "leads": {
+    "I": "abn",
+    "II": "either",
+    "III": "either",
+    "aVR": "either",
+    "aVL": "abn",
+    "aVF": "either",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "either",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "leadOverride.I replaces the QRS with two fused positive Gaussians (a 0.9 at mu 40, a 0.85 at mu 74) scaled by ws 1.667, giving a broad notched monophasic R with no septal q, plus st -0.08 and t -0.22 (discordant inverted T)",
+    "II": "no leadOverride, so it is pure hexaxial projection (netR = 1.35*cos(20-60) = +1.03, upright T +0.33) with normal morphology, but the global qrsScale of 1.667 stretches q/r/s to mu 13/37/67 ms with sigma 8.3/12.5/15, rendering an unmistakably wide QRS",
+    "III": "projection gives netR = 1.35*cos(20-120) = -0.23, so the else-branch renders r 0.108 / S -0.34 (rS), and the global ws 1.667 spreads that rS from roughly 12 to 97 ms, a clearly broad complex despite modest amplitude",
+    "aVR": "projection math: netR = 1.35*cos(20+150) = -1.33 puts it in the negative branch (r 0.108, S -1.44) with T -0.345 (normal for aVR) and st 0 since stMag=0, so the ST-T is unremarkable, but the global qrsScale renders that deep complex as a broad ~150 ms QS, which is a genuine per-lead morphology abnormality",
+    "aVL": "leadOverride.aVL supplies the same two-hump positive qrsComps (broad notched R, no septal q) plus t -0.18; st falls through to project(-30, stAxis 0, stMag 0) = 0, so the finding is wide notched R with T inversion",
+    "aVF": "no override; projection gives netR = 1.35*cos(20-90) = +0.46 with upright T +0.23, morphologically ordinary, but the global qrsScale of 1.667 widens the qRs to ~150 ms",
+    "V1": "leadOverride.V1 gives a vestigial 0.06 r then a -1.5 Gaussian at mu 55 sigma 20 (all times x1.667), producing a broad deep QS, with st +0.18 and t +0.28 as appropriate discordance",
+    "V2": "leadOverride.V2 is the same template but deeper (a -1.7) with st +0.22 and t +0.30, so broad QS with discordant ST elevation and tall upright T",
+    "V3": "leadOverride.V3 gives a -1.3 broad QS with st +0.15 and t +0.25, i.e. persistent deep negativity plus discordant ST elevation where R-wave progression should have begun",
+    "V4": "the only precordial lead with no leadOverride and no precordial override, so it uses normalPrecordial V4 (r 1.20, s -0.55, t 0.50, st 0) and is normal in shape, but the global qrsScale of 1.667 places r at 37 ms and s at 67 ms with sigma 12.5/15, rendering a ~150 ms wide complex",
+    "V5": "leadOverride.V5 replaces the template with two positive humps (1.2 at mu 40, 1.15 at mu 74, x1.667) giving a broad notched M-shaped R that also erases the normal septal q, with st -0.12 and t -0.30",
+    "V6": "leadOverride.V6 gives the same broad notched positive qrsComps with loss of the normalPrecordial septal q (-0.06), plus st -0.12 and t -0.28 discordant inversion"
+   },
+   "gradedCount": 7
+  },
+  {
+   "id": "ecg-015",
+   "name": "Wolff-Parkinson-White (WPW)",
+   "globalAbnormality": "Ventricular pre-excitation (WPW): global spec.pr=105 ms short PR, global spec.qrsWidth=118 ms (qrsScale 1.311), and the global flags.deltaWPW delta wave applied in computeLead to all 12 leads; rendered QRS duration rises from 40-56 ms to 118-132 ms in every lead, with no focal content at all (stMag=0, leadOverride={}, stock normalPrecordial, rhythm sinus at rate 72).",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "abn",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "Global flags.deltaWPW sets deltaA=+0.297 mV (p.r 0.675 >= |p.s| 0.176) and global qrsWidth 118 widens the rendered complex from 46 to 120 ms.",
+    "II": "Same global deltaWPW positive delta slurring the tall R, plus the global pr=105 ms readable against the largest visible P (0.120 mV), QRS 48 to 120 ms.",
+    "III": "Global deltaWPW gives deltaA=+0.297 mV on the axis-60 projection (netR 0.675) and global qrsWidth widens it 46 to 120 ms.",
+    "aVR": "deltaA flips negative (p.r 0.108 < |p.s| 1.277) so the global flag slurs the QS onset and widens aVR 40 to 132 ms, with the normal inverted P (-0.109 mV) making the 105 ms PR directly measurable; stMag=0 so this is primary pre-excitation, not a reciprocal artifact.",
+    "aVL": "Axis-60 projection makes netR ~0 so the global deltaWPW deltaA is negative (-0.297 mV), converting a tiny 48 ms complex into a broad 120 ms slurred QS.",
+    "aVF": "Global deltaWPW positive delta on netR 1.169 plus global qrsWidth 118 widens the complex 48 to 120 ms.",
+    "V1": "normalPrecordial rS (r 0.20 < |s| 1.05) flips deltaA to -0.297 mV, producing a pseudo-Q/QS pattern with widening 52 to 130 ms from global qrsWidth.",
+    "V2": "Precordial template rS (r 0.45 < |s| 1.65) gives a negative global delta, widening the complex 54 to 132 ms.",
+    "V3": "Template r 0.75 < |s| 1.05 flips deltaA negative, slurring the onset and widening the complex 56 to 130 ms.",
+    "V4": "Template r 1.20 > |s| 0.55 gives deltaA=+0.297 mV, the classic slurred upstroke, with global qrsWidth widening it 54 to 128 ms.",
+    "V5": "Template R-dominant (1.35 vs 0.28) gives a positive global delta slurring the upstroke, QRS 50 to 124 ms.",
+    "V6": "Template R-dominant (1.05 vs 0.14) gives deltaA=+0.297 mV and global qrsWidth widens the complex 46 to 118 ms."
+   },
+   "gradedCount": 12
+  },
+  {
+   "id": "ecg-016",
+   "name": "Acute anterior STEMI (LAD)",
+   "globalAbnormality": "none",
+   "leads": {
+    "I": "norm",
+    "II": "norm",
+    "III": "norm",
+    "aVR": "norm",
+    "aVL": "norm",
+    "aVF": "norm",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "either",
+    "V6": "norm"
+   },
+   "rationale": {
+    "I": "stAxis -10/stMag 0.08 projects onto 0 deg as only +0.079 mV peak (0.59 mm at the J point), sub-millimeter and within the engine's own baseline wander; QRS/T/P identical to ecg-001.",
+    "II": "projection onto 60 deg is cos(-70) x 0.08 = +0.027 mV (0.20 mm), unreadable, and no leadOverride touches lead II.",
+    "III": "projection onto 120 deg gives -0.051 mV (0.38 mm depression at J), far below any reciprocal-change threshold a reader could call.",
+    "aVR": "projection math checked: cos(140) x 0.08 = -0.061 mV, only 0.46 mm depression at J, and the small r / deep S / inverted T / negative P are byte-identical to the normal ecg-001 aVR.",
+    "aVL": "largest reciprocal-territory projection after I at +0.075 mV (0.56 mm), still sub-millimeter; the near-isoelectric QRS is just the default axis-60 projection shared with the normal case.",
+    "aVF": "cos(-100) x 0.08 = -0.014 mV, essentially zero (0.10 mm), the smallest projection of all six limb leads.",
+    "V1": "explicit precordial override st 0.28 (2.8 mm peak, 2.1 mm at J) plus t flipped from the normal template's -0.03 to +0.35.",
+    "V2": "precordial override st 0.42 renders 4.2 mm peak ST elevation (3.1 mm at J), well over the 2 mm V2 criterion.",
+    "V3": "precordial override st 0.40 renders 4.0 mm peak (3.0 mm at J), over the 2 mm V3 criterion.",
+    "V4": "precordial override st 0.30 renders 3.0 mm peak (2.2 mm at J), over the 1 mm criterion for V4.",
+    "V5": "precordial override st 0.12 gives 1.2 mm peak but only 0.90 mm at the J point where the ST Gaussian is 0.748x its peak, straddling the 1 mm threshold, so reader-dependent in isolation.",
+    "V6": "V6 is absent from the precordial override block, so computeLead reads the untouched normalPrecordial() template with st = 0 and normal r/s/q/t."
+   },
+   "gradedCount": 11
+  },
+  {
+   "id": "ecg-017",
+   "name": "Acute inferior STEMI (RCA)",
+   "globalAbnormality": "none (spec omits rhythm/flags/qrsWidth, so buildRhythm runs the plain 'sinus' branch with PR 190 ms and QRS 90 ms; the only global property is rate 58/min, a borderline sinus bradycardia that does not by itself make any lead's morphology abnormal)",
+   "leads": {
+    "I": "either",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "either",
+    "aVL": "abn",
+    "aVF": "abn",
+    "V1": "norm",
+    "V2": "norm",
+    "V3": "norm",
+    "V4": "norm",
+    "V5": "norm",
+    "V6": "norm"
+   },
+   "rationale": {
+    "I": "project(0, stAxis 100, stMag 0.36) = -0.063 mV, rendering only 0.53 mm of ST sag, right at threshold and comparable to the engine's own baseline-wander amplitude",
+    "II": "project(60, 100, 0.36) = +0.276 mV renders 2.8 mm ST elevation via the ST Gaussian at q0+92 ms",
+    "III": "project(120, 100, 0.36) = +0.338 mV renders 3.3 mm ST elevation, exceeding lead II as the RCA teaching point requires",
+    "aVR": "project(-150, 100, 0.36) = -0.123 mV gives a real 1.2 mm ST depression, above threshold but rarely a taught marking target in inferior STEMI",
+    "aVL": "project(-30, 100, 0.36) = -0.231 mV renders 2.1 mm reciprocal ST depression, on an isoelectric QRS since axis +60 makes netR zero",
+    "aVF": "project(90, 100, 0.36) = +0.354 mV is the largest projection (cos 10 deg), rendering 3.5 mm ST elevation",
+    "V1": "no spec.precordial block, so b.st is undefined and p.st = 0; the untouched normalPrecordial template renders r 0.20 / s -1.05 / t -0.03",
+    "V2": "precordial branch of computeLead reads only the default template; p.st = 0 and no flag or leadOverride touches this lead",
+    "V3": "stAxis/stMag are projected onto limb leads only, so V3 keeps its default r 0.75 / s -1.05 / t 0.52",
+    "V4": "default template r 1.20 / s -0.55 / t 0.50 with p.st = 0; the frontal-plane ST vector never reaches the horizontal-plane leads",
+    "V5": "default template including the normal septal q of -0.06; no precordial override in this spec",
+    "V6": "default template r 1.05 / t 0.36 with septal q -0.06 and p.st = 0, unremarkable in isolation"
+   },
+   "gradedCount": 10
+  },
+  {
+   "id": "ecg-018",
+   "name": "Acute lateral STEMI (LCx)",
+   "globalAbnormality": "none",
+   "leads": {
+    "I": "abn",
+    "II": "norm",
+    "III": "abn",
+    "aVR": "either",
+    "aVL": "abn",
+    "aVF": "either",
+    "V1": "norm",
+    "V2": "norm",
+    "V3": "norm",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "stAxis -30/stMag 0.26 projects onto the 0-degree axis as +2.25 mm ST elevation",
+    "II": "projection cos(-30 - 60) = 0 gives exactly 0.00 mm ST, and rhythm/axis/T/P are all engine defaults",
+    "III": "projection onto the 120-degree axis gives -2.25 mm reciprocal ST depression",
+    "aVR": "projection onto -150 degrees gives -1.30 mm ST depression, real reciprocal change but a borderline magnitude in a lead rarely marked",
+    "aVL": "aVL sits at -30 degrees, exactly on stAxis, so it takes the full +2.60 mm ST elevation",
+    "aVF": "projection onto 90 degrees gives -1.30 mm reciprocal ST depression, above the 0.5 mm threshold",
+    "V1": "no precordial override, so the normalPrecordial template renders unmodified with st = 0",
+    "V2": "no precordial override, default template with st = 0",
+    "V3": "no precordial override, default template with st = 0",
+    "V4": "precordial override sets st 0.12 = +1.2 mm elevation, meeting the 1 mm criterion for V4",
+    "V5": "precordial override st 0.26 renders +2.6 mm ST elevation",
+    "V6": "precordial override st 0.24 renders +2.4 mm ST elevation"
+   },
+   "gradedCount": 10
+  },
+  {
+   "id": "ecg-019",
+   "name": "Posterior MI",
+   "globalAbnormality": "none",
+   "leads": {
+    "I": "norm",
+    "II": "norm",
+    "III": "norm",
+    "aVR": "norm",
+    "aVL": "norm",
+    "aVF": "norm",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "norm",
+    "V5": "norm",
+    "V6": "norm"
+   },
+   "rationale": {
+    "I": "stMag is 0 so the limb ST projection is exactly 0, and computeLead output for I is identical to the normal sinus case",
+    "II": "sinus rhythm at 80 with stMag 0 yields a projection identical to the engine's normal sinus lead II",
+    "III": "no stAxis/stMag vector exists to project, so III renders the unmodified axis-60 normal template",
+    "aVR": "project(-150,60,1.35) = -1.169 gives the physiologic net-negative QRS with inverted P and T, and st projects to exactly 0.00 because stMag is 0, so aVR is bit-identical to normal sinus aVR",
+    "aVL": "project(-30,60,1.35) = 0 renders a near-isoelectric QRS that is the engine's own normal for axis +60, with zero ST projection",
+    "aVF": "spec sets no stAxis/stMag and no leadOverride, so aVF is identical to the normal sinus rendering",
+    "V1": "precordial template override sets r 1.0 against s -0.25 (dominant R, R/S 4.0) plus st -0.22 and an upright t 0.28 replacing the normal -0.03",
+    "V2": "precordial override gives r 1.3 vs s -0.35 (R/S 3.7, pathologically dominant R) with st -0.26, measured -0.20 mV depression",
+    "V3": "precordial override sets st -0.18 (measured -0.13 mV depression) with t cut from the normal 0.52 to 0.20 and R/S raised to 1.67",
+    "V4": "not present in spec.precordial, so mergeSpec leaves the normalPrecordial template with st undefined (0) intact",
+    "V5": "untouched by the spec's precordial override, rendering the default normal template including the septal q",
+    "V6": "untouched by the spec's precordial override, so it renders the unmodified normal precordial template"
+   },
+   "gradedCount": 12
+  },
+  {
+   "id": "ecg-020",
+   "name": "NSTEMI / ischemia (ST depression, TWI)",
+   "globalAbnormality": "none",
+   "leads": {
+    "I": "abn",
+    "II": "either",
+    "III": "norm",
+    "aVR": "norm",
+    "aVL": "either",
+    "aVF": "norm",
+    "V1": "norm",
+    "V2": "norm",
+    "V3": "norm",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "leadOverride.I applies st -0.08 and tInv, flipping the projected T to -0.27 mV, rendering ~0.9 mm sustained downsloping ST depression into a deep inverted T.",
+    "II": "leadOverride.II st -0.06 is centered at q0+92ms with stSig 42 and is swamped by the normal upright T, so the trace shows only a ~0.5 mm upsloping J-point dip that is +0.39 mm by J+80 with a normal T.",
+    "III": "no leadOverride and stMag stays at the baseSpec default 0, so project(120, stAxis, stMag) is exactly 0 and the lead renders identical to ecg-001.",
+    "aVR": "project(-150, 0, 0) = 0 gives zero ST deviation, and the inverted P, negative QRS and inverted T are just the normal pAxis/axis/tAxis projections onto -150 degrees, delta vs normal 0.00.",
+    "aVL": "leadOverride.aVL st -0.08 plus tInv produces ~0.8 mm sustained ST depression with an inverted T, though netR = 1.35*cos(90) = 0 leaves the QRS near isoelectric so the ST sag, not the TWI, carries the call.",
+    "aVF": "no leadOverride entry and stMag 0 means project(90, stAxis, stMag) is 0, leaving the normal axis 60 projection with an upright 2.3 mm T.",
+    "V1": "spec.precordial has no V1 key, so mergeSpec leaves the normalPrecordial template intact including its physiologically normal slightly negative T.",
+    "V2": "untouched normalPrecordial template; the +0.89 mm at J+80 is only the shoulder of the normal 4.2 mm upright T, identical to ecg-001.",
+    "V3": "untouched normalPrecordial template, so R-wave progression, ST and the tall upright T all render at normal reference values.",
+    "V4": "precordial.V4 sets st -0.15 and overrides t from +0.50 to -0.15, giving ~1.4 mm sustained ST depression with a fully inverted T.",
+    "V5": "precordial.V5 sets st -0.18 and t -0.25, the deepest depression in the tracing at ~1.7 mm with a 2.5 mm inverted T.",
+    "V6": "precordial.V6 sets st -0.16 and t -0.22, rendering ~1.5 mm ST depression with a 2.2 mm inverted T."
+   },
+   "gradedCount": 10
+  },
+  {
+   "id": "ecg-021",
+   "name": "Left ventricular hypertrophy (LVH)",
+   "globalAbnormality": "none",
+   "leads": {
+    "I": "abn",
+    "II": "norm",
+    "III": "norm",
+    "aVR": "either",
+    "aVL": "abn",
+    "aVF": "either",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "either",
+    "V4": "norm",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "leadOverride.I sets st -0.08 and tInv, and axis 5 with qrsMag 1.9 projects R to 18.9 mm, giving tall R with ST depression and T inversion",
+    "II": "no leadOverride and stMag 0, so projection at 60 deg gives R 10.9 mm (smaller than the 13.5 mm normal baseline) with an unchanged upright T",
+    "III": "projection of the normal-range axis 5 makes netR negative so the rS with 9.5 mm S is the expected pattern, and T 0.6 mm is identical to the normal baseline",
+    "aVR": "stMag 0 gives no reciprocal ST and P/T/QRS polarity match the normal baseline exactly; only qrsMag 1.9 deepens S from 12.8 to 18.7 mm, a voltage-only change never taught as an aVR marking target",
+    "aVL": "leadOverride.aVL sets st -0.08 and tInv while the leftward axis 5 with qrsMag 1.9 projects R to 15.6 mm (0.0 mm normally), i.e. tall R with lateral strain",
+    "aVF": "projection at 90 deg of axis 5 yields a near-isoelectric QRS, which axisFromLeads still classifies normal, and T is unchanged from baseline with st 0",
+    "V1": "precordial template override sets s -2.6, a 26 mm S versus the 10.5 mm normal template value",
+    "V2": "precordial template override sets s -3.0, a 30 mm S versus the 16.5 mm normal template value",
+    "V3": "precordial override deepens S from 10.5 to 16 mm with R and T untouched, which feeds the Cornell sum but is within normal limits read in isolation",
+    "V4": "no precordial entry for V4 in spec, so mergeSpec leaves the normalPrecordial template values intact and the trace is identical to a normal ECG",
+    "V5": "precordial override sets r 3.0 (30 mm R), st -0.14 and t -0.35, producing tall R with downsloping ST depression and T inversion",
+    "V6": "precordial override sets r 2.6 (26 mm R), st -0.13 and t -0.32, producing tall R with strain-pattern ST depression and T inversion"
+   },
+   "gradedCount": 9
+  },
+  {
+   "id": "ecg-022",
+   "name": "Right ventricular hypertrophy (RVH)",
+   "globalAbnormality": "none - rhythm is plain 'sinus' at 86 bpm with flags {}, leadOverride {}, qrsWidth 90 and stMag 0, so nothing in the spec touches all 12 leads; axis 115 is limb-only because precordial leads read from spec.precordial, not the axis vector",
+   "leads": {
+    "I": "abn",
+    "II": "either",
+    "III": "norm",
+    "aVR": "either",
+    "aVL": "either",
+    "aVF": "norm",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "norm",
+    "V4": "norm",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "project(0,115,1.3) = -0.549 mV trips the negative branch of computeLead, rendering r 0.10 / S -0.65 - a net-negative lead I is never normal",
+    "II": "pMag 0.2 projected at cos(15 deg) renders P at only 0.193 mV (1.9 mm), under the 2.5 mm P pulmonale threshold, and the P sigma stays 19 ms so it is not actually peaked; QRS/T otherwise normal",
+    "III": "lead angle 120 is nearly parallel to axis 115 so R maxes at 1.295 mV (13 mm), still within normal limits for III, and its T (0.061) is numerically identical to the NSR case",
+    "aVR": "axis 115 is near-perpendicular to the -150 aVR vector, so cos(265 deg) collapses net QRS from -1.28 mV (NSR) to -0.11 mV; P and T stay physiologically inverted, leaving only an isoelectric QRS that is a normal consequence of rightward axis",
+    "aVL": "project(-30,115,1.3) = -1.065 mV gives r 0.10 / S -1.17, deeper than a normal vertical axis can produce (max -0.5 mV at axis 90) yet visually indistinguishable from the common normal-variant rS in aVL",
+    "aVF": "project(90,115,1.3) = 1.178 mV versus 1.169 mV in the NSR case, so the limb projection renders aVF essentially unchanged from normal",
+    "V1": "spec.precordial.V1 overrides the template to r 1.3 / s -0.2 (R 13 mm, R/S 6.5) plus t -0.25 and st -0.06, giving dominant R with right-precordial strain",
+    "V2": "spec.precordial.V2 sets r 1.0 / s -0.5 so R exceeds S (abnormally early transition) and flips T from the template +0.42 to -0.20",
+    "V3": "V3 is absent from spec.precordial so mergeSpec leaves normalPrecordial() intact (r 0.75, s -1.05, t +0.52) - the teaching text's TWI V1-V3 is never rendered here",
+    "V4": "V4 is also untouched by the precordial override and renders the verbatim normal template (r 1.20, s -0.55, t +0.50)",
+    "V5": "spec.precordial.V5 replaces r 1.35 / s -0.28 with r 0.5 / s -0.9, making S dominant over R in a lateral lead",
+    "V6": "spec.precordial.V6 replaces r 1.05 / s -0.14 with r 0.35 / s -0.8, leaving a persistent deep S and R/S 0.44 in V6"
+   },
+   "gradedCount": 9
+  },
+  {
+   "id": "ecg-023",
+   "name": "Hyperkalemia",
+   "globalAbnormality": "Global peaked/tented T waves plus flattened P waves in all 12 leads: flags.peakedT forces every lead's T to >=0.75 mV with tSig narrowed 54->26 (FWHM 127->61 ms) and flags.lowP scales every P to 25%, on a sinus rhythm with PR 210 ms and qrsWidth 118 ms (both global). No leadOverride, no precordial edits, stMag 0 - so there is no focal component at all.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "abn",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "Global peakedT floor raises T from 0.268 to 0.750 mV with tSig 26, and lowP cuts P to 0.017 mV, so this lead shows a tall narrow tented T over a nearly absent P.",
+    "II": "peakedT gives a 0.750 mV narrow T (T/R 0.55 vs normal 0.24) and lowP drops P to 0.030 mV (0.3 mm), the textbook tented-T plus flat-P pair.",
+    "III": "peakedT's 0.75 mV floor overrides the tiny projected T (0.061 mV normally), rendering a grossly disproportionate 7.5 mm narrow peaked T in a lead whose T is normally near-isoelectric.",
+    "aVR": "Projection at -150 deg gives T = -0.345 normally, but peakedT preserves sign and floors magnitude at 0.75, so aVR renders a deep narrow symmetric inverted T (2.2x deeper, half the width) with P flattened to -0.027 mV - a direct global-flag effect, not a subtle ST reciprocal (stMag = 0).",
+    "aVL": "netR projects to exactly 0 at axis 60 so the QRS is nearly flat, and peakedT lifts T from 0.120 to 0.750 mV - sampling shows the lead's peak deflection jumping 0.148 -> 0.779 mV, a giant T dwarfing the QRS.",
+    "aVF": "peakedT raises T from 0.225 to 0.750 mV with tSig 26 and lowP flattens P to 0.025 mV, giving the same tented-T/flat-P morphology as II.",
+    "V1": "The precordial template's t = -0.03 keeps a negative sign through Math.sign, so peakedT's 0.75 floor renders a deep 7.5 mm narrow inverted T where normally the T is flat - abnormal as drawn (an engine sign-preservation artifact, but a reader would call it).",
+    "V2": "peakedT lifts the template T from 0.42 to the 0.750 mV floor with tSig 26, producing a narrow tented T, and lowP leaves P at 0.015 mV.",
+    "V3": "peakedT's 1.6x multiplier takes T from 0.52 to 0.832 mV at tSig 26 - the tallest, narrowest T on the tracing and a keyLead for the tenting.",
+    "V4": "peakedT scales T 0.50 -> 0.800 mV at tSig 26, a narrow 8 mm tented T with P flattened to 0.013 mV.",
+    "V5": "peakedT floors T at 0.750 mV (from 0.42) with FWHM 61 ms, clearly out of proportion for a lateral precordial lead.",
+    "V6": "peakedT more than doubles T from 0.36 to 0.750 mV at tSig 26, so even the lead with the smallest normal T shows a 7.5 mm narrow tented T over a 0.010 mV P."
+   },
+   "gradedCount": 12
+  },
+  {
+   "id": "ecg-024",
+   "name": "Hypokalemia",
+   "globalAbnormality": "Global repolarization abnormality: flattened T waves with prominent U waves in all 12 leads (flags flatT + uWave applied to every lead inside computeLead). Rhythm, rate (76), PR (160) and QRS width (90) are all normal, so the ST depressions in II/V4/V5 are focal add-ons, not the global finding.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "either",
+    "aVR": "either",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "global flatT cuts projected T to 0.094 mV (1.1 mm) while global uWave adds a 1.2 mm U, so the U exceeds the T",
+    "II": "global flatT/uWave give a 1.2 mm T with a taller 1.3 mm U, plus leadOverride st -0.05 renders 0.5 mm of ST depression",
+    "III": "global uWave adds a 1.3 mm U against a flatT-reduced 0.021 mV T, a 5.6x U/T ratio so the T-U complex reads as one broad hump",
+    "aVR": "flatT leaves the projected T negative at -1.37 mm (normal direction for aVR) and the only finding is the +1.1 mm U that uWave sets as an unprojected positive constant, so its polarity is artifactual and it is the one lead where U does not exceed T",
+    "aVL": "flatT drops the projected T to 0.42 mV-equivalent 0.4 mm while uWave adds a 1.2 mm U, giving a U nearly 3x the T",
+    "aVF": "flatT reduces the projected T to 0.8 mm and global uWave adds a taller 1.2 mm U, so the U dominates the T",
+    "V1": "global uWave sets the precordial U to 0.18 mV, rendering a frankly prominent 2.0 mm U against a flatT-nulled T of -0.01 mV",
+    "V2": "flatT cuts the precordial template T from 4.2 mm to 1.4 mm and uWave adds a taller 1.6 mm U",
+    "V3": "flatT reduces the template T from 5.2 mm to 2.0 mm and the 0.18 mV precordial U renders equally tall at 2.0 mm",
+    "V4": "flatT halves the template T to 1.9 mm, uWave adds a 2.0 mm U, and leadOverride st -0.08 renders 0.7 mm of ST depression",
+    "V5": "flatT cuts the template T to 1.6 mm, uWave adds a taller 1.9 mm U, and leadOverride st -0.06 renders 0.5 mm of ST depression",
+    "V6": "flatT drops the template T to 1.3 mm while the 0.18 mV precordial U renders 2.2 mm, the largest U/T disparity of the lateral precordials"
+   },
+   "gradedCount": 9
+  },
+  {
+   "id": "ecg-025",
+   "name": "Acute pericarditis",
+   "globalAbnormality": "PR-segment depression from flags.prDep, applied in computeLead to all 12 leads (0.06 mV depression, sign-inverted to PR elevation in aVR)",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "either",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "global prDep flag renders 0.58 mm PR depression, plus stAxis 45/stMag 0.13 projects onto the 0 deg hexaxial angle for 0.92 mm concave ST elevation",
+    "II": "global prDep flag renders 0.58 mm PR depression, and the ST vector projects onto 60 deg for the largest limb elevation at 1.26 mm",
+    "III": "global prDep flag renders 0.58 mm PR depression (above the 0.5 mm threshold, repeated every beat); the ST projection onto 120 deg is only 0.34 mm so PR change carries the call",
+    "aVR": "prDep sign inversion for aVR renders 0.57 mm PR elevation and the ST vector projects onto -150 deg as 1.26 mm ST depression, the largest limb ST magnitude and an explicit keyLeads target",
+    "aVL": "global prDep flag renders 0.58 mm PR depression dominating a near-absent 0.10 mm P; ST projection onto -30 deg is only 0.34 mm and netR is isoelectric, so PR change carries the call",
+    "aVF": "global prDep flag renders 0.58 mm PR depression, plus 0.92 mm ST elevation from projecting stAxis 45 onto the 90 deg angle",
+    "V1": "not present in spec.precordial and normalPrecordial().V1 has no st key, so ST is exactly 0; the global prDep flag still renders a 0.59 mm PR trough deeper than the 0.20 mm residual P wave",
+    "V2": "precordial override st 0.10 renders 1.0 mm ST elevation on top of the global 0.58 mm PR depression",
+    "V3": "precordial override st 0.12 renders 1.2 mm ST elevation on top of the global 0.58 mm PR depression",
+    "V4": "precordial override st 0.12 renders 1.2 mm ST elevation on top of the global 0.58 mm PR depression",
+    "V5": "precordial override st 0.11 renders 1.1 mm ST elevation on top of the global 0.58 mm PR depression",
+    "V6": "precordial override st 0.09 renders 0.9 mm ST elevation on top of the global 0.58 mm PR depression"
+   },
+   "gradedCount": 10
+  },
+  {
+   "id": "ecg-026",
+   "name": "Brugada syndrome (type 1)",
+   "globalAbnormality": "none",
+   "leads": {
+    "I": "norm",
+    "II": "norm",
+    "III": "norm",
+    "aVR": "norm",
+    "aVL": "norm",
+    "aVF": "norm",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "norm",
+    "V4": "norm",
+    "V5": "norm",
+    "V6": "norm"
+   },
+   "rationale": {
+    "I": "no global flags and stMag=0 so the limb ST projection is exactly 0; waveform is bit-identical to the default normal spec",
+    "II": "sinus rhythm at 72 with default axis 60 and stMag=0 yields the baseline normal trace, delta 0.0000 mV vs normal",
+    "III": "project(120, stAxis 0, stMag 0) = 0 and no leadOverride exists for III, so it renders the unmodified baseline",
+    "aVR": "project(-150, 60, 1.35) = -1.169 gives the normal negative QRS with P -0.11 and T -0.34, and stMag=0 means no reciprocal ST is projected",
+    "aVL": "near-isoelectric QRS (r=0.00) is just axis 60 being perpendicular to the -30 aVL vector in the default spec, identical to baseline normal",
+    "aVF": "no flags, no leadOverride, and zero ST vector leave the default normal inferior complex untouched",
+    "V1": "leadOverride.V1 replaces the normal rS with an all-positive qrsComps triplet whose broad third gaussian (a 0.5, mu 70, sigma 26) covers the J-point/ST region and descends into an overridden inverted T (-0.32, tSig 46)",
+    "V2": "leadOverride.V2 does the same, abolishing the normal deep S (-1.65) and producing a coved elevated takeoff into an inverted T (-0.35), a 2.52 mV departure from the normal template",
+    "V3": "spec.precordial is not overridden for V3, so computeLead returns the normalPrecordial() template (r 0.75, s -1.05, upright t 0.52) unchanged",
+    "V4": "leadOverride covers only V1 and V2; V4 falls through to the untouched normal precordial template",
+    "V5": "no override and no global flag applies, so the normal lateral template with septal q renders exactly as baseline",
+    "V6": "unmodified normalPrecordial() entry with zero ST term; waveform delta vs the normal spec is 0.0000 mV"
+   },
+   "gradedCount": 12
+  },
+  {
+   "id": "ecg-027",
+   "name": "Pulmonary embolism (right heart strain)",
+   "globalAbnormality": "Sinus tachycardia at 112 bpm (spec.rate=112, spec.rhythm='sinus' -> buildRhythm emits 1:1 P/QRS at RR 536 ms); rate is the only property affecting all 12 leads. spec.axis=100 (right axis deviation) is global to the 6 limb leads only, since computeLead projects axis onto LIMB_ANGLE but uses the fixed normalPrecordial() template for V1-V6. spec.stMag=0, so no reciprocal ST change is rendered in any lead, and spec.flags is empty.",
+   "leads": {
+    "I": "abn",
+    "II": "either",
+    "III": "either",
+    "aVR": "either",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "either",
+    "V5": "either",
+    "V6": "either"
+   },
+   "rationale": {
+    "I": "leadOverride.I addS -0.35 stacked on the axis-100 projection (netR = 1.35*cos100 = -0.234) yields r 0.108 / S -0.692 mV, a net-negative lead I that is both the S1 and single-lead-readable right axis",
+    "II": "axis projection only shrinks R from 1.35 to 1.034 mV with P, QRS and T morphology unchanged from normal, so the sole finding is the global rate of 112",
+    "III": "leadOverride.III addQ -0.22 deepens Q to -0.287 mV (23% of the 1.269 mV R, 4x the normal render) and tInv flips T to -0.061 mV, giving the Q3T3",
+    "aVR": "projection math gives P -0.109, net QRS -0.462 and T -0.345, all normal aVR negative polarities, and stMag=0 means no reciprocal ST is rendered, so only the global rate remains",
+    "aVL": "no leadOverride, so the deep S -0.976 mV is pure axis-100 projection and is indistinguishable in isolation from a normal vertical axis (axis +85 already renders S -0.68)",
+    "aVF": "leadOverride.aVF tInv flips T from the projected +0.225 to -0.225 mV, a clear 2.2 mm inferior T inversion, and this lead is deliberately absent from keyLeads",
+    "V1": "spec.precordial.V1 overrides t from the template's -0.03 to -0.22 mV, a discrete 2.2 mm inverted T matching V2 in depth (RV strain)",
+    "V2": "spec.precordial.V2 overrides t from the template's +0.42 to -0.25 mV, an unambiguous polarity flip to a 2.5 mm inverted T",
+    "V3": "spec.precordial.V3 overrides t from the template's +0.52 to -0.15 mV, a definite polarity flip that is abnormal in an adult even at 1.5 mm",
+    "V4": "no precordial override and axis does not reach V-leads, so the trace is bit-identical to the normal template (r 1.20 / s -0.55 / t +0.50) and only the global rate differs",
+    "V5": "untouched normalPrecordial() entry (r 1.35 / s -0.28 / q -0.06 / t +0.42) renders identically to ecg-001, leaving rate as the only finding",
+    "V6": "untouched normalPrecordial() entry (r 1.05 / s -0.14 / q -0.06 / t +0.36) renders identically to ecg-001; the clockwise-rotation S wave real PE shows is never generated"
+   },
+   "gradedCount": 5
+  },
+  {
+   "id": "ecg-028",
+   "name": "Long QT syndrome",
+   "globalAbnormality": "Prolonged QT: the global `longQT` flag in computeLead (line 279) shifts the T gaussian from q0+235 to q0+345 ms and widens tSig 54->72 in every lead, yielding a rendered QT of roughly 490 ms at RR 882 ms (QTc ~530). No rhythm change, no leadOverride, no precordial override, and stMag 0, so there is no focal content whatsoever.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "either",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "either",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "global longQT flag delays and broadens the T; projected T = 0.27 mV (2.7 mm) so the late broad T and long QT are plainly readable",
+    "II": "global longQT flag applied here too, and the axis-40 T projection gives the tallest limb T (3.3 mm), the classic QT measurement lead",
+    "III": "longQT applies, but the T projects to only 0.061 mV (0.6 mm), at or below the 0.42 mm baseline wander added in sampleLead, so the delayed T is not reliably resolvable",
+    "aVR": "not reciprocal but the same global longQT flag; projection gives T = -0.345 mV, the largest-amplitude limb T, so the broad inverted T terminating near 490 ms is unambiguously late",
+    "aVL": "global longQT flag; T projects to 0.12 mV (1.2 mm) against a near-isoelectric QRS (netR = 0 at axis 60), making the late broad hump the dominant and conspicuous deflection",
+    "aVF": "global longQT flag; T projects to 0.225 mV (2.3 mm), enough amplitude to show the +110 ms T displacement and prolonged QT",
+    "V1": "longQT applies, but the precordial template T is only -0.03 mV (0.3 mm), comparable to the 0.42 mm baseline wander, so no measurable T end exists and the trace reads as a normal rS with a flat T",
+    "V2": "global longQT flag acting on the precordial template T of 0.42 mV produces an obviously broad, late 4.2 mm T",
+    "V3": "global longQT flag on template T = 0.52 mV gives the tallest precordial T (5.2 mm) with a clearly displaced peak and terminus",
+    "V4": "global longQT flag on template T = 0.50 mV renders the broad late 5 mm T; matches the keyLeads pointer",
+    "V5": "global longQT flag on template T = 0.42 mV yields a 4.2 mm broad T with QT end near 490 ms",
+    "V6": "global longQT flag on template T = 0.36 mV gives a 3.6 mm broad late T, readily measurable"
+   },
+   "gradedCount": 9
+  },
+  {
+   "id": "ecg-029",
+   "name": "Torsades de pointes",
+   "globalAbnormality": "Polymorphic wide-complex tachycardia (torsades): rate 240/min with RR 250 ms, complete absence of P waves (buildRhythm 'torsades' emits pEvents = [] and only vEvents), QRS widened ~3.2x normal (qrsWidth 150 -> qrsScale 1.667 multiplied by the event's widthScale 1.9), with beat-to-beat amplitude modulation (ampScale 0.6-1.5) and a polarity reversal partway through the strip; T waves at tOffset 235 ms fuse into the next QRS at RR 250 ms, so no lead has an isoelectric baseline.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "abn",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "abn",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "Global torsades event train: no P waves (pEvents empty), 240/min, QRS x3.17 wide, and r = 0.675 mV is multiplied by the flipping polarity so the twist is directly visible.",
+    "II": "Global rhythm flag drives the largest projection (netR 1.35 mV at axis 60 vs lead angle 60), giving grossly wide polarity-reversing complexes at 240/min with no P waves.",
+    "III": "Global event train with r = 0.675 mV projected onto the 120-degree axis; no P waves, 3.17x QRS width, and polarity reversal render the twisting envelope.",
+    "aVR": "Projection math gives netR -1.169 mV (deep S -1.277, T -0.345), so aVR renders 2.5 mV p2p wide polarity-flipping complexes at 240/min with no P waves - abnormal for the same global mechanism, not merely reciprocally.",
+    "aVL": "netR projects to 0 so only q/s/T remain (0.47 mV p2p), but the global train still yields continuous non-isoelectric undulation at 240/min with absent P waves and 3.17x QRS widening.",
+    "aVF": "netR 1.169 mV projection carries the full global abnormality: absent P waves, 240/min, widthScale-broadened QRS, and polarity inversion of r and t.",
+    "V1": "Precordial template is untouched but the global vEvents impose 240/min, absent P waves and a 3.17x-wide deep S complex (s -1.05) with amplitude modulation.",
+    "V2": "Unmodified precordial template driven by the global torsades train: no P waves, 240/min, markedly widened complexes with r/T polarity reversal.",
+    "V3": "Global train applied to the normal V3 template (r 0.75, t 0.52) produces wide twisting complexes at 240/min with no atrial activity.",
+    "V4": "Normal template amplitudes (r 1.20, t 0.50) are scaled by ampScale and inverted by polarity under the global rhythm, at 240/min with absent P waves.",
+    "V5": "Largest precordial R (1.35 mV) makes the global amplitude/polarity twist most conspicuous; no P waves, QRS widened 3.17x, rate 240.",
+    "V6": "Global torsades event train imposes absent P waves, 240/min and 3.17x QRS widening on the standard V6 template with polarity-reversing r and T."
+   },
+   "gradedCount": 11
+  },
+  {
+   "id": "ecg-030",
+   "name": "Digitalis effect",
+   "globalAbnormality": "Short QT (spec.flags.shortQT), applied inside computeLead to all 12 leads: tOffset 235 to 165 ms and tSig 54 to 46, yielding QT ~288 ms / QTc ~302 ms at rate 66 (normal control 377/396), with the T's rising limb effacing the ST segment in every lead.",
+   "leads": {
+    "I": "abn",
+    "II": "abn",
+    "III": "either",
+    "aVR": "abn",
+    "aVL": "either",
+    "aVF": "abn",
+    "V1": "norm",
+    "V2": "abn",
+    "V3": "abn",
+    "V4": "abn",
+    "V5": "abn",
+    "V6": "abn"
+   },
+   "rationale": {
+    "I": "global flags.shortQT pulls the 2.75 mm upright T to tOffset 165 ms so it abuts the QRS with no ST segment (QTc ~302), even though no leadOverride and stMag 0 give it no focal ST",
+    "II": "leadOverride.II st -0.08 mV renders ~0.7 mm of sagging scooped ST depression under a 13.5 mm R, plus the global shortQT",
+    "III": "leadOverride.III st -0.06 mV renders ~0.4 to 0.5 mm sagging ST depression net of T encroachment, on top of the global shortQT",
+    "aVR": "stMag 0 means no reciprocal ST is projected onto the -150 deg axis and there is no override, but global shortQT drags aVR's -3.55 mm inverted T onto the J point (apparent 1.0 to 1.5 mm depression, QTc ~302)",
+    "aVL": "global shortQT only; the near-isoelectric QRS is the normal projection of axis 60 (cos 90 deg ~ 0), but the 1.19 mm T sits 165 ms after QRS onset",
+    "aVF": "leadOverride.aVF st -0.06 mV shifts the ST take-off ~0.5 mm down under an 11.7 mm R, plus the global shortQT with a readable 2.11 mm T",
+    "V1": "no precordial override (normal rS template r 0.20 / s -1.05) and its T of -0.03 mV is too small for the global shortQT to be readable, so the trace is indistinguishable from normal",
+    "V2": "global shortQT only; the precordial template's 3.94 mm T is pulled to tOffset 165 ms, abolishing the ST segment (QTc ~302)",
+    "V3": "global shortQT drives the 5.41 mm T's upstroke onto the ST segment, giving 1.7 to 3.4 mm take-off elevation versus 0.4 to 0.7 mm in the normal control",
+    "V4": "precordial.V4 st -0.10 / t -0.06 flips the T from +5.21 mm upright to -1.05 mm inverted and depresses the ST ~1 mm, plus the global shortQT",
+    "V5": "precordial.V5 st -0.14 / t -0.08 gives ~1.5 to 1.8 mm scooped ST depression under the tallest R (13.5 mm) with T inversion from +4.13 mm, plus the global shortQT",
+    "V6": "precordial.V6 st -0.12 / t -0.06 gives ~1.1 to 1.3 mm sagging ST depression with T inversion from +3.93 mm, plus the global shortQT"
+   },
+   "gradedCount": 10
+  }
+ ],
+ "adjudications": [
+  {
+   "id": "ecg-005",
+   "lead": "I",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: Lead I is the same makeFlutterBaseline pol=0.2 tier as aVL, which the key already hedges to 'either'. Measured at the trainer's real scale (pxPerMm 3.8, stroke-width 1.5px), the lead I flutter ripple is 0.64 mm pure = 2.4 px peak-to-peak, only ~1.6 line-widths, so it renders as a faintly fuzzy line rather than a perceptible sawtooth. The claimed P-wave loss is also unreadable: the normal lead I P projects to 0.69 mm (2.6 px), which is SMALLER than the engine's own baseline wander at lines 370-371 (0.028 + 0.014 mV sinusoids, ~0.84 mm p-p), so its absence cannot be distinguished from drift. Empirically, detrended peak-to-peak deviation in the pre-QRS segment is 2.9 px in flutter versus 3.4 px in normal sinus (ecg-001) for the same lead: the flutter trace is actually FLATTER than normal. A student marking lead I normal is reading the rendered trace correctly and would be failed for it."
+   ]
+  },
+  {
+   "id": "ecg-006",
+   "lead": "aVL",
+   "original": "either",
+   "final": "either",
+   "proposals": [
+    "abn: The proposer is right that the P projection in aVL is 0.010 mV and undetectable, but wrong that this makes the lead reader-dependent. computeLead takes the netR >= 0 branch and still assigns q = -0.0675 and s = -0.1755 mV, so aVL renders a 1.5 mm S wave plus a 1.4 mm T wave, 3.6 mm total excursion at the panel gain of 9.74 mm/mV, repeating on a metronomic 324 ms cycle. The rate of 185/min is trivially countable from that panel, and a regular narrow-complex tachycardia at 185 is the abnormality that defines this case, not a secondary feature. The proposer's own rationale concedes the rate is readable here, which is a positive finding for abn rather than a reason to abstain. README.md:33 states the governing rule directly: global properties including spec.rhythm are applied in computeLead to every lead and therefore make all twelve abnormal, with AFib given as the cautionary example of exactly this error. Because 'either' leads are dropped from grading entirely, this call gives no credit to a student who correctly flags the tachycardia in aVL and no correction to one who calls aVL normal while missing a 185/min rhythm. A cardiologist would not sign a key asserting that aVL in an SVT at 185 is defensibly normal."
+   ]
+  },
+  {
+   "id": "ecg-007",
+   "lead": "aVL",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: Perceptually borderline; the cited findings are not resolvable at the rendered magnitude. project(-30,60,1.35)=0 leaves aVL with q -0.0675 and s -0.1755 only, so the rendered QRS excursion is 1.75 mm (0.175 mV, not the ~0.25 mV the rationale asserts) and total waveform peak-to-peak is 2.99 mm on a 34 mm panel at the case gain of 10.0 mm/mV. Every other lead renders 7.2-17.9 mm. Critically, ecg-001's aVL renders the same ~3 mm envelope, so amplitude gives the student no discriminating signal. The two findings the key names for this lead are both unreadable there: QRS width cannot be judged from a 1.75 mm deflection that merges into the T, and 'absent P' is invisible because normal aVL's P is project(-30,55,0.12)=0.0105 mV (~0.1 mm) and is already sub-perceptual in the reference tracing. The only real cue left is cycle count (7 vs 3 per 2.5 s) plus loss of the flat baseline (isoelectric fraction 78% -> 45%), which is a genuine but marginal read. A student who calls aVL a low-voltage, uninformative lead has read the trace correctly and should not be graded wrong; since the trainer skips 'either' leads entirely (if(want==='either' || !m) return;), downgrading costs nothing and removes an unfair hard call."
+   ]
+  },
+  {
+   "id": "ecg-011",
+   "lead": "aVL",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: The non-conducted P at 1850 ms renders in aVL at 0.10-0.18 mm (0.38-0.68 px at the trainer's pxPerMm 3.8 and fitGain 9.6 mm/mV), measured across 5 seeds. That is less than half the trace stroke-width of 1.5 px, so it is categorically invisible - the proposer concedes it 'is not resolvable' yet still grades abn. It is 5-10x smaller than the P in any other lead. aVL is also the only lead where NO P is visible at all, conducted or dropped, and its QRS is 2.04 mm, three times smaller than the next-smallest lead (I, 6.44 mm), because axis 60 is perpendicular to the -30 deg aVL axis. The sole remaining cue is the absence of one small blip followed by 24.4 mm of flat trace at the END of the panel - and because the next vEvent is at 2810 ms, outside the 0-2500 ms window, the gap is terminal rather than bracketed by a following QRS, so it reads just as plausibly as 'the recording ended.' A student who marks aVL normal has read the rendered trace correctly and should not be failed for it. Grading this either way is unfair; make it 'either'."
+   ]
+  },
+  {
+   "id": "ecg-012",
+   "lead": "aVL",
+   "original": "either",
+   "final": "either",
+   "proposals": [
+    "abn: The premise is correct but the conclusion is not. aVL P does project to 0.0105 mV (0.105 mm, sub-pixel at render gain), so the dissociated atrial train truly is invisible here. But the defining abnormality of complete heart block is not only the marching P waves, it is the dissociated slow ventricular escape, and that is present in aVL at full strength because rate is not attenuated by frontal-plane projection. I sampled the 2500 ms aVL panel: it contains exactly 2 QRS complexes (t=650 and t=2229), a single RR of 1579 ms = 38/min, versus 3 complexes at 833 ms in the ecg-001 normal. The aVL complex peaks at 0.175 mV (about 1.75 mm S) plus a 0.12 mV T, roughly 25x the 0.007 mV fast-noise amplitude, so the complexes are clearly rendered and countable. A lead showing QRS at 38/min with no visible P waves is unambiguously abnormal, not reader-dependent. Because 'either' is excluded from grading entirely (ecg-trainer.template.html:511), this call denies credit to the student who correctly marks aVL and implicitly teaches that a lead running at 38/min may be called normal. This is the classic failure of mapping a global rhythm abnormality onto only the leads where its most visible feature renders."
+   ]
+  },
+  {
+   "id": "ecg-014",
+   "lead": "II",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: The proposer's rationale ('the global qrsScale of 1.667 stretches q/r/s ... rendering an unmistakably wide QRS') is false as rendered. II has no leadOverride, so qrsTAt uses the default branch with sigmas 5/7.5/9 ms; even scaled by 1.667 the complex measures 69 ms at a 0.10 mV threshold and 80 ms at 0.05 mV, i.e. 1.7 small boxes at 25 mm/s. The baseline normal spec renders lead II at 43 ms, so this is proportionally wider but absolutely still well under 120 ms. Morphology is an ordinary qRs, st=0, T upright +0.33. A student measuring what is drawn correctly calls this lead narrow and normal. The concept-correct student is also right that QRS duration is a single global interval and is 150 ms in this patient (isoelectric initial/terminal forces are exactly why some leads look narrower in real LBBB). Both reads are defensible, so the key must accept either; grading abn-only penalizes accurate reading of the image.",
+    "either: The key rests this lead entirely on the global qrsScale rendering an 'unmistakably wide QRS'. It does not. With no leadOverride, computeLead gives q -0.068 / r 1.034 / s -0.176 and qrsTAt places them at mu 13/37/67 ms with sigma 8.3/12.5/15. The contiguous supra-threshold deflection measures 49 ms (1.2 small boxes) at the case's render gain of 9.61 mm/mV, versus 165-168 ms in I/aVL/V5/V6. Everything else in the lead is textbook: qRs morphology, upright T +0.33, st 0 (stMag=0), sinus at 72 with PR 160. A student measuring lead II against the grid reads a narrow complex and marks it normal, correctly. 'either' rather than 'norm' so the student who recognizes LBBB and calls the QRS wide across all leads is not penalized either."
+   ]
+  },
+  {
+   "id": "ecg-014",
+   "lead": "III",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: Proposer claims the rS 'spreads from roughly 12 to 97 ms, a clearly broad complex.' Measured, it is 41 ms at 0.10 mV and 74 ms at 0.05 mV, i.e. 1.0 small box, the narrowest complex on the tracing. No leadOverride, so the narrow default sigmas apply. r 0.11 / S -0.34 is a normal rS for a +20 degree axis, st=0, T +0.06 (a small upright T in III is normal). Nothing abnormal is drawn in this lead. Keep credit for the student applying the global 150 ms QRS duration, but a 'norm' call here is the accurate pixel read and must not be marked wrong.",
+    "either: Same defect. netR = 1.35*cos(20-120) = -0.23 puts it in the negative branch (r 0.108, S -0.342), and the global ws stretches that rS, but the rendered contiguous deflection is 50 ms (1.2 boxes), not the 'clearly broad complex' the key claims. Amplitude is only 0.45 mV total, so the small q/s never clear the visibility threshold. T is +0.061, essentially flat, which is a normal variant in III, and st is 0. Nothing on screen supports a graded 'abn'."
+   ]
+  },
+  {
+   "id": "ecg-014",
+   "lead": "aVR",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: Proposer asserts 'the global qrsScale renders that deep complex as a broad ~150 ms QS, which is a genuine per-lead morphology abnormality.' It does not: aVR measures 64 ms at 0.10 mV and 70 ms at 0.05 mV, 1.6 small boxes. Worse, this aVR is nearly indistinguishable from the baseline normal case's aVR (S -1.44 here vs -1.28 in the normal spec), and the rest is textbook normal aVR: negative QRS, st=0, T -0.34 inverted as expected. There is no aVR-specific abnormality drawn. Marking it abn-only would train students to over-call aVR, the exact failure mode this lens warns about.",
+    "either: The key explicitly concedes the ST-T is unremarkable (T -0.345, st 0) and rests the call solely on 'a broad ~150 ms QS'. Measured, the rendered deflection is 74 ms (1.8 boxes). The S of -1.437 is barely deeper than the normal-case aVR S of -1.277 (axis 60 gives netR -1.169), so depth is not a finding either. What renders is a normal aVR: negative complex, inverted T, narrow."
+   ]
+  },
+  {
+   "id": "ecg-014",
+   "lead": "aVF",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: Proposer concedes the lead is 'morphologically ordinary' and rests the abn call entirely on 'the global qrsScale of 1.667 widens the qRs to ~150 ms.' Measured it is 64 ms at 0.10 mV and 74 ms at 0.05 mV, 1.6 small boxes. netR +0.46 upright, st=0, T +0.22 upright. The sole stated basis for abn is not present in the rendering, so a 'norm' call is correct on the image while an 'abn' call is correct on the global QRS-duration concept. Accept both.",
+    "either: Worst case of the five. No override, netR = 1.35*cos(20-90) = +0.462, upright T +0.225, st 0, and the rendered contiguous QRS is 38 ms, exactly one small box, the narrowest complex in the entire panel. The key's own reason admits the lead is 'morphologically ordinary' and relies wholly on the width, which is not there. Failing a student for marking this normal would be indefensible."
+   ]
+  },
+  {
+   "id": "ecg-014",
+   "lead": "V4",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: V4 uses the untouched normalPrecordial template (r 1.20, s -0.55, q 0, t 0.50, st 0), identical in morphology to the normal-case V4, and renders 85 ms at 0.10 mV (2.1 small boxes) versus 51 ms for the normal spec. The proposer's '~150 ms wide complex' is not what is drawn. As rendered this is a flatly normal lead with a tall upright T and no ST shift. It sits between a deep broad QS in V3 and a broad notched inverted-T R in V5, so a student reasoning from the LBBB pattern will call it abn and a student measuring the complex will call it norm; both deserve credit.",
+    "either: The only precordial lead with no override, so it renders normalPrecordial V4 unchanged (r 1.20, s -0.55, t 0.50, st 0) with a contiguous deflection of 49 ms (1.2 boxes); the qrs-only span is 94 ms, still under 120 even at a generous threshold. Its own morphology is a textbook normal V4. There is a legitimate contextual reading (an abrupt jump from the deep QS in V3 to a tall R here), which is why 'either' rather than 'norm', but the stated basis, a '~150 ms wide complex', is contradicted by the render."
+   ]
+  },
+  {
+   "id": "ecg-018",
+   "lead": "aVF",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: aVF and aVR receive mathematically IDENTICAL ST vectors from the engine: project(90,-30,0.26) = -0.1300 mV and project(-150,-30,0.26) = -0.1300 mV, because both leads sit exactly 120 degrees off the -30 degree ST axis. At the real render gain (fitGain returns 9.62 mm/mV, not the 10 the key assumes) aVF measures -1.19 mm and aVR measures -1.35 mm, so aVR is actually the LARGER and more visually distinct deviation (its inverted T-tail adds to it, and it presents as a long flat depressed plateau). The key nonetheless calls this magnitude 'a borderline magnitude' in aVR and ungrades it, then calls the same magnitude 'above the 0.5 mm threshold' in aVF and grades it abn. Both justifications cannot hold. aVF is the weaker of the pair perceptually: at native trainer scale (pxPerMm 3.8, heightMm 34) it is a 4.5 px displacement on a 129 px panel, in a lead that otherwise still reads as a normal inferior lead with upright QRS and upright T; in an A/B against ecg-001's aVF the difference is detectable but marginal. Because 'either' is excluded from scoring entirely, ungrading aVR costs nothing while grading aVF actively produces a missedAbn penalty for a student who read the trace correctly. Note also that aVF's depression is not an authored finding the way V4's is (V4 has an explicit precordial st: 0.12 and shows a genuine morphology change, loss of the isoelectric S-to-T interval, so its abn stands) but an automatic projection byproduct, and the case's own keyLeads lists only I, aVL, V5, V6 and III. Either demote aVF to 'either' for consistency with aVR, or promote aVR to 'abn' - but the student-fair resolution under a perceptibility lens is aVF -> either."
+   ]
+  },
+  {
+   "id": "ecg-020",
+   "lead": "aVL",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: Perceptually borderline, and the proposer's stated justification is wrong on the numbers. leadOverride.aVL applies the same st -0.08 / tInv as lead I, but projected onto -30 degrees the T becomes project(-30, 40, 0.35) = 0.120 mV, so the rendered inverted T is only 1.10 mm at the case's fitted gain (fitGain = 9.52 mm/mV, not 10). The isolated ST effect peaks at just 0.76 mm and has decayed to 0.25 mm by q0+155, so 'about 0.8 mm sustained' overstates it, and the claim that 'the ST sag, not the TWI, carries the call' is backwards since the sag is the weaker of the two signals. Meanwhile netR = 1.35*cos(90) = 0 leaves r = 0, s = -0.176, q = -0.068, i.e. essentially no QRS. sampleLead injects 0.028 + 0.014 mV of sinusoidal baseline wander (0.40 mm) plus 0.014 mV noise, so the aVL ST-T trough sits only 2 to 2.75x above the wander; in the rasterized panel at pxPerMm 3.8 the post-QRS dips are comparable in scale to the visible baseline undulation. By contrast V6, the shallowest defensible abn, runs 4 to 5x wander (ST -1.52 mm, T -2.02 mm), and lead I renders a 2.45 mm inverted T against a 0.675 mV R wave for a 5.1 mm swing off normal. Compounding the render problem, T-wave inversion in a lead with an isoelectric or low-voltage QRS is explicitly non-diagnostic on a real ECG, so a student who sees aVL's absent R wave and roughly 1 mm T deflection and marks it normal is applying a correct rule to a trace the engine drew faithfully, and would be failed for reading it right. Lead I remains a graded abn, so the lateral TWI teaching point survives; aVL should not be a graded call."
+   ]
+  },
+  {
+   "id": "ecg-021",
+   "lead": "aVF",
+   "original": "norm",
+   "final": "either",
+   "proposals": [
+    "either: The proposed rationale is factually wrong about the render. computeLead gives aVF r=0.166 mV but then unconditionally subtracts the fixed q (-0.05*qrsMag = -0.095) and s (-0.13*qrsMag = -0.247), so the drawn complex is not 'near-isoelectric' - it is a net-negative rS. At the actual rendered gain (fitGain returns 5.22 mm/mV, compressed by V5's 3.0 mV R), aVF draws r +0.39 mm against S -1.56 mm, with baseline-corrected QRS area -44.6 versus +117.4 in the normal ECG. The S is ~4x the r and reads clearly downward-dominant. The appeal to axisFromLeads is circular: that function projects the axis vector only (project(90,5,1.9)=+0.166) and never sees the fixed q and s the renderer draws, so the engine's axis label contradicts the engine's own waveform. A student using the standard quadrant method sees I net positive plus aVF net negative and reads left axis deviation, which this case's teaching text explicitly primes ('Left axis is common'); grading that as a miss fails a correct read of the trace. But the total swing is only ~1.9 mm on a panel where V5's R is 15 mm, so marking nothing is also defensible. Perceptually borderline in both directions, so it should be 'either' rather than a graded 'norm'."
+   ]
+  },
+  {
+   "id": "ecg-024",
+   "lead": "III",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: Render-match failure. Normal lead III T projects to only 0.35*cos(120-40)=0.061 mV (0.58 mm at the trainer's fitted gain of 9.61 mm/mV), so lead III is near-flat even in the normal case. In ecg-024 flatT cuts the T to 0.31 mm and the fixed 0.12 mV limb U adds a hump measured at 1.16 mm. Because the T and U Gaussians (sigma 54 and 44, 135 ms apart) merge, the T lobe never forms a local maximum: notch depth below the T peak is 0.00 mm. The panel therefore draws ONE broad hump of 1.16 mm, i.e. twice the height of the normal lead III T wave. Rendering ecg-024 III beside ecg-001 III at identical scale shows two essentially identical traces, with the hypokalemia hump if anything the taller of the pair. The only residual cue is that the hump peaks 135 ms later, which is not judgeable in a 237 px panel without a side-by-side reference. A student who reads this panel correctly sees a small, plausibly normal T wave, so 'abn' would fail them for accurate reading. The key's stated rationale (a 5.6x U/T ratio) is a parameter ratio that is not renderable as two distinguishable waves."
+   ]
+  },
+  {
+   "id": "ecg-024",
+   "lead": "aVR",
+   "original": "either",
+   "final": "either",
+   "proposals": [
+    "abn: aVR carries the global repolarization abnormality as clearly as any other lead and should not be gradeable as normal. Sampling the rendered waveform against the normal reference case (ecg-001): the aVR T flattens from -3.78 mm to -1.53 mm, a 60 percent reduction, and a discrete POSITIVE deflection of +0.94 mm (about +1.1 mm above the -0.18 mV TP baseline) appears at the U position where the normal tracing shows -0.36 mm. Both of the proposer's grounds for hedging fail. (1) 'U does not exceed T' is the wrong threshold: the normal ceiling for a U wave is roughly 25 percent of T height, and the rendered U/|T| ratio in aVR is 0.94/1.53 = 61 percent, well into prominent territory. The proposer applied a prominence standard in every other limb lead and switched to a strict ratio only here. (2) 'The U polarity is artifactual' is a critique of engine fidelity, not a grading call. A positive U wave in a lead with a negative T is discordant, does not occur in normal tracings, and is a recognized abnormal finding in its own right. Regardless of how the engine produced it (p.u is set as an unprojected positive constant at ecg-engine.js:281), what the student sees on the strip is an inverted T followed by a 1.1 mm upright hump, well above the roughly 0.4 mm baseline wander. Marking this 'either' awards credit to a student who calls aVR normal on a lead showing both T flattening and a prominent discordant U."
+   ]
+  },
+  {
+   "id": "ecg-024",
+   "lead": "aVL",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: Render-match failure, the clearest in the map. Normal aVL T projects to 0.35*cos(-30-40)=0.120 mV = 1.15 mm at the fitted gain. In ecg-024 flatT drops the T to 0.44 mm but the global 0.12 mV U renders a hump measured at 1.17 mm, and the notch below the T peak is 0.00 mm so no second wave is drawn. Net result: the hypokalemia aVL panel shows a single broad hump of 1.17 mm where a normal aVL shows a single hump of 1.15 mm. That is a 2 percent difference, far below the baseline wander of +/-0.40 mm built into sampleLead. Rendered side by side against ecg-001 aVL the two panels are visually indistinguishable. The key's rationale ('a U nearly 3x the T') describes the computeLead parameters, not the trace: the suppressed T lobe is invisible because it is absorbed into the U's rising limb, so the student has no perceptible cue at all in this lead."
+   ]
+  },
+  {
+   "id": "ecg-025",
+   "lead": "aVL",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: aVL adds only 0.59 mm PR depression plus 0.33 mm ST elevation (invisible on its own). Critically, aVL has effectively no P wave: project(-30, 55, 0.12) = 0.0105 mV, and the PR Gaussian subtracts 0.020 mV at the P peak, netting the P below zero (-0.02 mm). With no P and a near-isoelectric 1.7 mm QRS, the finding renders as a smooth monotonic scoop into the QRS with no landmark defining where the PR segment begins - visually the same as the engine's own injected baseline wander (0.028 + 0.014 mV sinusoids, up to 0.42 mm peak). Confirmed by rasterizing the panel at true display scale: the aVL pericarditis and normal traces are barely separable. Lead III has identical 0.59/0.33 numbers but keeps a 0.50 mm P wave and a normal-amplitude QRS to anchor the notch, which is why III survives as 'abn' and aVL does not."
+   ]
+  },
+  {
+   "id": "ecg-025",
+   "lead": "V1",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: V1 carries the smallest rendered deviation of any lead in the case: 0.60 mm total, entirely from the global prDep Gaussian, with ST exactly 0.00 mm (V1 is absent from spec.precordial and normalPrecordial().V1 has no st key, so p.st === 0). At the trainer gain of 9.898 mm/mV and pxPerMm 3.8, that is a ~2.7 px trough. Every other feature of V1 (rS morphology, R-wave progression, T wave) renders identically to a normal trace. A student who marks V1 normal is reading the trace correctly and would be failed by a hard 'abn' call, so this should not be a graded call."
+   ]
+  },
+  {
+   "id": "ecg-027",
+   "lead": "III",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: The proposed 'abn' is reasoned from spec parameters, not the rendered trace. addQ -0.22 sets p.q = -0.287 mV, but qrsTAt sums overlapping Gaussians and the R component (a 1.269 mV, mu q0+22 ms, sigma 7.5 ms) contributes about +0.22 mV at the q peak time (q0+8 ms), cancelling most of the q. Sampled at 0.5 ms the rendered q trough is only -1.28 mm against a 12.61 mm R = 10.1% of R, narrow (sigma 5 ms), far below the 25% pathologic-Q threshold. The T is worse: tInv only had project(120, 40, 0.35) = 0.061 mV to flip, so the rendered T window is [-0.37, +0.31] mm, a flat T with a nadir under half a small box, not a discernible inversion. What the student actually sees in III is a tall R, a ~1 mm narrow q, and a flat T, which is a normal vertical-axis lead III and is also the classic isolated-Q-and-flat-T-in-III normal variant. Grading a correct 'normal' call as a miss is indefensible. 'either' rather than 'norm' because the lead does deviate from baseline (a q appears where there is none, the T flattens from a 1 mm upright) and it is the designated Q3T3 teaching lead, which is exactly the reader-dependent case the codebase defines 'either' for.",
+    "either: Neither half of the Q3T3 renders at a gradeable magnitude. tInv acts on the axis projection 0.35*cos(40-120)=0.0608 mV, so the T renders at only -0.65 mm, smaller than the engine's own baseline wander (0.028+0.014 mV sinusoids = 0.81 mm peak-to-peak at this case's fitGain of 9.61 mm/mV); by contrast the same tInv flag in aVF acts on a 0.225 mV projection and renders a clean -2.41 mm flip. The Q3 is also blunted by Gaussian overlap: addQ -0.22 gives a nominal q of -0.287 mV, but the R Gaussian (1.269 mV, mu=22, sigma=7.5) contributes +0.222 mV at the q trough (mu=8, sigma=5), so the rendered q is only -1.43 mm against an 11.85 mm R, i.e. 12% of R and about 24 ms wide, below both the 25%-of-R and 40 ms pathologic-Q thresholds. A student reading lead III in isolation sees a tall R (expected with right axis), a normal-sized narrow septal q, and a flat T, and would correctly call it unremarkable. The q is still 5x the normal render's -0.30 mm and visible as a notch, so some students will flag it; 'either' accepts both correct reads instead of failing one."
+   ]
+  },
+  {
+   "id": "ecg-028",
+   "lead": "aVL",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: Perceptually borderline, and the proposer's rationale is inverted. At the true render gain (fitGain = 9.61 mm/mV, pinned globally by V2's -1.65 mV S so aVL cannot be rescaled), aVL's T projects to only 1.15 mm against 0.73 mm peak-to-peak baseline wander (T/noise 1.57). The proposer's 0.42 mm noise figure omits the (rng()-0.5)*0.014 term in sampleLead line 372. Critically, they cite the near-isoelectric QRS (netR = 8.3e-17 at axis 60 vs lead angle -30) as making the T 'dominant and conspicuous' -- but that leaves the QRS itself at just 1.75 mm p-p (q -0.0675, r ~0, s -0.1755), so the whole aVL trace spans 13 px of a 129 px panel. Prolonged QT is a timing read requiring BOTH a localizable QRS onset and a localizable T end; erasing the R wave destroys the left-hand fiducial rather than helping. aVL is worse than III on the QRS reference (1.75 mm vs 7.6 mm) and only ~2x better on T amplitude, so it belongs with III and V1 as ungraded rather than as a graded 'abn' that would fail a student for reading a near-flat lead correctly."
+   ]
+  },
+  {
+   "id": "ecg-029",
+   "lead": "aVL",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: netR projects to ~0 at axis 60 / lead angle -30, so aVL retains only q -0.068, s -0.176, t 0.120 mV, and the torsades polarity flip acts on an r of 0. At the trainer's real display gain (fitGain returns 6.12 mm/mV for this case, not 10), the aVL panel renders 2.7 mm peak-to-peak in a 34 mm panel - smaller than the same lead on the normal-sinus case (3.5 mm) - with no identifiable QRS and only ~3.5x the engine's own wander/noise floor. The wide QRS, amplitude modulation and twist are all invisible; the sole surviving cue is a low-amplitude 4/s ripple that reads as a fuzzy baseline. Grading this 'abn' penalizes a student who correctly reports aVL as unreadable, so it should be ungraded rather than a graded call."
+   ]
+  },
+  {
+   "id": "ecg-030",
+   "lead": "III",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: The rendered ST depression from leadOverride.III st -0.06 peaks at only -0.42 to -0.57 mm below the isoelectric baseline at 70-100 ms and is back to baseline by 140 ms (verified stable across 8 seeds), which is the same order as the engine's own baseline wander (0.028 + 0.014 mV sinusoids, ~0.42 mm) and about 2 px on a 3.8 px/mm panel. The global shortQT gives no usable cue in this lead either: III's T wave is 0.58 mm in both the digitalis case and the normal control, so there is no visible T end to see arriving early. A student who reads lead III as unremarkable is reading the trace correctly, so this should not be a graded 'abn'."
+   ]
+  },
+  {
+   "id": "ecg-030",
+   "lead": "aVL",
+   "original": "abn",
+   "final": "either",
+   "proposals": [
+    "either: aVL has no ST deviation at all (dig +0.21 mm at 90 ms, i.e. slightly above baseline, vs -0.06 mm in the normal control, a 0.28 mm difference), so the only drawn finding is a 1.18 mm T wave peaking 69 ms earlier than normal. That cue sits in a lead whose QRS is a near-isoelectric ~1.4 mm blip (axis 60 projects to cos 90 = 0), so QRS onset cannot be located well enough to judge QT. The divergence from the normal control is under 0.75 mm at every point, less than half that of lead I (1.35-1.69 mm at 120-160 ms with a 2.7 mm T), making this perceptually borderline rather than a defensible graded call."
+   ]
+  }
+ ]
+}

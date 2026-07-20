@@ -19,10 +19,21 @@ var engineTag = '<script>\n' + engine + '\n</script>';
 var libIndex = read('ecg-library/index.json');
 var libTag = '<script>window.ECG_LIBRARY=' + libIndex + ';</script>';
 
+/* Per-lead answer key for hard mode. Derived from the engine spec and reviewed
+   against the rendered trace; see ecg-lead-truth.json. Optional so the build
+   still works before it is generated -- hard mode simply grades nothing. */
+var truthTag = '';
+try {
+  truthTag = '<script>window.ECG_LEAD_TRUTH=' + read('ecg-lead-truth.json') + ';</script>';
+} catch (e) {
+  console.warn('WARNING: ecg-lead-truth.json missing - hard mode will not grade leads.');
+}
+
 function inline(tpl, out) {
   var html = read(tpl).replace('<!--ECG_ENGINE_TAG-->', engineTag);
   if (html.indexOf(engineTag) < 0) throw new Error('engine tag not inlined in ' + tpl);
   html = html.replace('<!--ECG_LIBRARY_TAG-->', libTag);
+  html = html.replace('<!--ECG_LEAD_TRUTH_TAG-->', truthTag);
   // remove the dev-only sibling scripts if present
   html = html.replace(/<script src="ecg-engine\.js"><\/script>\s*/g, '');
   html = html.replace(/<script src="ecg-library-dev\.js"><\/script>\s*/g, '');
@@ -30,7 +41,9 @@ function inline(tpl, out) {
 }
 
 inline('ecg-qa.template.html', 'ecg-qa.html');
-inline('ecg-trainer.template.html', 'ecg-trainer.html');
+/* index.html IS the trainer: it is what GitHub Pages serves at the site root and
+   what you get double-clicking the file locally. There is no second copy. */
+inline('ecg-trainer.template.html', 'index.html');
 
 /* ---- case bank JSON (derived from the engine's diagnosis catalog) ---- */
 var ECG = require('./ecg-engine.js');
@@ -40,6 +53,7 @@ var cases = ECG.DX.map(function (d) {
     diagnosis: d.name,
     category: d.category,
     clinical: d.clinical,
+    clinicals: d.clinicals,
     rate: d.rate,
     rhythm: d.rhythm,
     axis: d.axis,
@@ -61,7 +75,7 @@ if (process.argv.indexOf('--deploy') >= 0) {
   fs.mkdirSync(ecgDir, { recursive: true });
   fs.mkdirSync(dataDir, { recursive: true });
   // trainer -> ecg/ecg.html
-  fs.copyFileSync(path.join(ROOT, 'ecg-trainer.html'), path.join(ecgDir, 'ecg.html'));
+  fs.copyFileSync(path.join(ROOT, 'index.html'), path.join(ecgDir, 'ecg.html'));
   console.log('deployed ecg/ecg.html');
   // image library (reference, personal study)
   fs.mkdirSync(libDst, { recursive: true });

@@ -230,7 +230,10 @@
       case 'vt': { // monomorphic wide-complex tachy
         var rrv = 60000 / (spec.rate || 165);
         var tvt = 300;
-        while (tvt < durMs + rrv) { vEvents.push({ t: tvt, widthScale: 2.2, ampScale: 1 }); tvt += rrv; }
+        // width comes from spec.qrsWidth (170 ms) now that the template is
+        // calibrated; the old 2.2x here was compensating for the narrow template
+        // and would double-count, rendering a ~340 ms complex.
+        while (tvt < durMs + rrv) { vEvents.push({ t: tvt, widthScale: 1, ampScale: 1 }); tvt += rrv; }
         break;
       }
       case 'torsades': { // polymorphic VT: amplitude/polarity envelope twists
@@ -238,7 +241,9 @@
         var tt = 300, k = 0;
         while (tt < durMs + rrt) {
           var env = Math.sin(2 * Math.PI * 0.55 * tt / 1000); // twisting envelope
-          vEvents.push({ t: tt, widthScale: 1.9, ampScale: 0.6 + 0.9 * Math.abs(env), polarity: env >= 0 ? 1 : -1 });
+          // width from spec.qrsWidth (150 ms); the twisting envelope stays in
+          // ampScale/polarity, which is what actually makes torsades recognisable
+          vEvents.push({ t: tt, widthScale: 1, ampScale: 0.6 + 0.9 * Math.abs(env), polarity: env >= 0 ? 1 : -1 });
           tt += rrt; k++;
         }
         break;
@@ -343,26 +348,72 @@
     return p;
   }
 
+  /* Calibrates the default QRS template so the rendered complex matches
+     spec.qrsWidth on the grid. Measured empirically: see measure-qrs.js. */
+  var QRS_CAL = 1.92;
+
+  /* Milliseconds after the QRS onset at which the complex has decayed - the J
+     point. Anything measuring the ST segment has to start from this rather than a
+     fixed offset, because it moves with spec.qrsWidth: a 150 ms LBBB complex is
+     still mid-QRS where a 90 ms complex is already on its ST segment. */
+  function qrsEndMs(spec, lead) {
+    var p = computeLead(spec, lead);
+    if (p.qrsComps) {
+      var end = 0;
+      for (var i = 0; i < p.qrsComps.length; i++) {
+        var c = p.qrsComps[i], e = (c.mu + 2.5 * c.sigma) * p.qrsScale;
+        if (e > end) end = e;
+      }
+      return end;
+    }
+    return (40 + 2.5 * 9) * p.qrsScale * QRS_CAL;
+  }
+
   /* ------------------------------------------------------- signal builder */
   function qrsTAt(t, q0, p, ve) {
     var ws = p.qrsScale * (ve.widthScale || 1);
     var amp = (ve.ampScale != null) ? ve.ampScale : 1;
     var pol = (ve.polarity != null) ? ve.polarity : 1;
     var v = 0;
+    var qrsEnd;                                   // ms after q0 where the QRS has decayed
     if (p.qrsComps) {
       for (var i = 0; i < p.qrsComps.length; i++) {
         var c = p.qrsComps[i];
         v += gauss(t, c.a * amp * pol, q0 + c.mu * ws, c.sigma * ws);
+        var e = (c.mu + 2.5 * c.sigma) * ws;
+        if (qrsEnd == null || e > qrsEnd) qrsEnd = e;
       }
     } else {
+      /* The default q/r/s triplet spans only ~0.52x its nominal duration once the
+         Gaussian tails drop below what a reader can see, so spec.qrsWidth was not
+         the rendered width: a normal 90 ms QRS drew at ~47 ms, and RBBB, LBBB and
+         the complete-heart-block escape all drew NARROW (66-76 ms) in the eight
+         leads that carry no qrsComps override. That inverts the defining feature
+         of a bundle branch block. QRS_CAL restores rendered ~= nominal.
+         It is applied ONLY here: qrsComps overrides above were hand-tuned against
+         the uncalibrated scale and already render their intended width. */
+      var wsd = ws * QRS_CAL;
       if (p.delta) v += gauss(t, p.deltaA * amp, q0 - 6, 24);   // WPW slurred delta upstroke
-      v += gauss(t, p.q * amp, q0 + 8 * ws, 5 * ws);
-      v += gauss(t, p.r * amp * pol, q0 + 22 * ws, 7.5 * ws);
-      v += gauss(t, p.s * amp, q0 + 40 * ws, 9 * ws);
+      v += gauss(t, p.q * amp, q0 + 8 * wsd, 5 * wsd);
+      v += gauss(t, p.r * amp * pol, q0 + 22 * wsd, 7.5 * wsd);
+      v += gauss(t, p.s * amp, q0 + 40 * wsd, 9 * wsd);
+      qrsEnd = (40 + 2.5 * 9) * wsd;
     }
-    if (p.st) v += gauss(t, p.st, q0 + 92 * ws, p.stSig);
-    v += gauss(t, p.t * amp * pol, q0 + p.tOffset, p.tSig);
-    if (p.u) v += gauss(t, p.u, q0 + p.tOffset + 135, 44);
+    /* The ST bump has to sit AFTER the QRS, not inside it. It used to be pinned at
+       a flat 92 ms, which worked only because the uncalibrated complex ended by
+       ~60 ms. Once the QRS renders its true width the S-wave tail reaches 92 ms and
+       cancels the elevation -- anterior STEMI measured -0.11 mV in V2. Tying the ST
+       to the computed QRS end keeps the same 30 ms J-point gap at every width
+       (62.5 + 30 = 92.5, so normal-width output is unchanged). */
+    if (p.st) v += gauss(t, p.st, q0 + qrsEnd + 30, p.stSig);
+    /* The T wave is placed relative to the J point, not to the QRS onset. tOffset
+       was authored against a J point of ~62.5 ms, so that offset is preserved and
+       the ST segment keeps its length as the QRS widens. This is also the correct
+       physiology: QT contains the QRS, so a 150 ms LBBB complex lengthens QT
+       rather than eating into the ST segment. */
+    var tCenter = q0 + qrsEnd + (p.tOffset - 62.5);
+    v += gauss(t, p.t * amp * pol, tCenter, p.tSig);
+    if (p.u) v += gauss(t, p.u, tCenter + 135, 44);
     return v;
   }
 
@@ -465,7 +516,11 @@
   /* ---- RHYTHM ---- */
   add({
     id: 'ecg-001', name: 'Normal sinus rhythm', category: 'rhythm',
-    clinical: '24-year-old healthy volunteer for a pre-participation sports physical. No symptoms.',
+    clinicals: [
+      "A 34-year-old woman comes to the emergency department with two hours of chest discomfort that began while she was sitting at her desk this afternoon, the fourth such episode this month. She has no cardiac history, takes no medications, and her blood pressure at triage is 118/72 when a tracing is obtained.",
+      "A 58-year-old woman is brought in by ambulance after she felt suddenly lightheaded at a grocery store and slid to the floor, waking within seconds without confusion. She takes lisinopril for hypertension, her blood pressure on arrival is 126/80, and paramedics recorded a tracing en route.",
+      "A 62-year-old man is on hospital day three for community-acquired pneumonia and tells the team he has felt washed out since breakfast. He has been afebrile for 24 hours and is off supplemental oxygen, he is alert and warm and well perfused, and his blood pressure is 130/78 when a tracing is obtained on rounds."
+    ],
     rate: 72, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: {},
     teaching: 'Regular rhythm 60-100/min, an upright P before every QRS (upright in I and II, inverted in aVR), constant PR 120-200 ms, narrow QRS under 120 ms, and normal R-wave progression across the precordium. Establish the normal before you can call anything abnormal.',
@@ -473,21 +528,33 @@
   });
   add({
     id: 'ecg-002', name: 'Sinus bradycardia', category: 'rhythm',
-    clinical: 'Conditioned 30-year-old endurance athlete, resting heart rate in the 40s, asymptomatic.',
+    clinicals: [
+      "A 19-year-old woman presents to student health for a pre-participation physical before the cross country season. She runs about 50 miles a week, takes no medications, and denies chest pain, palpitations, lightheadedness, or exercise intolerance; BP 110/66 and the cardiac exam is unremarkable.",
+      "A 66-year-old man comes to the emergency department after realizing he took his morning blood pressure pill a second time by mistake. He feels mildly lightheaded when he stands but is alert and conversant, with warm extremities, clear lungs, and BP 108/62.",
+      "A 52-year-old woman is on hospital day 2 of IV antibiotics for leg cellulitis and is resting overnight on telemetry. The night nurse obtains a routine tracing at 3 am; the patient is asleep, rouses easily, reports no symptoms, and has BP 118/72 with the erythema on her shin already receding."
+    ],
     rate: 46, rhythm: 'sinus', axis: 'normal', territory: null, keyLeads: {},
     teaching: 'Sinus mechanism with a rate under 60/min. Normal P-QRS-T; each P conducts. Common in athletes, sleep, high vagal tone, and with beta-blockers or nondihydropyridine calcium-channel blockers. Treat only if symptomatic.',
     spec: { rate: 46 }
   });
   add({
     id: 'ecg-003', name: 'Sinus tachycardia', category: 'rhythm',
-    clinical: '28-year-old with fever and dehydration from gastroenteritis. Rate 122, regular.',
+    clinicals: [
+      "A 19-year-old man is in the emergency department with two days of worsening wheeze and cough after a viral upper respiratory infection, and he has taken three albuterol nebulizer treatments in the last hour. He is anxious and sitting forward, respiratory rate 26, blood pressure 128/74, temperature 37.1 C, oxygen saturation 93 percent on room air.",
+      "A 34-year-old woman is on the medical ward receiving her second day of intravenous antibiotics for pyelonephritis. Her flank pain has improved, temperature is 38.8 C, blood pressure 108/66, and respiratory rate 20.",
+      "A 58-year-old man comes to clinic with six weeks of fatigue and shortness of breath climbing his stairs, and he has been taking naproxen twice daily for knee arthritis and passing black tarry stools for the past week. He is pale with blanched conjunctivae, alert and conversant, with a blood pressure of 118/72 and a soft nontender abdomen."
+    ],
     rate: 122, rhythm: 'sinus', axis: 'normal', territory: null, keyLeads: {},
     teaching: 'Sinus mechanism above 100/min with a normal P before every QRS. It is a response, not a primary arrhythmia, so look for the cause: fever, pain, hypovolemia, anemia, hyperthyroidism, PE, sympathomimetics. Treat the trigger.',
     spec: { rate: 122, pr: 150 }
   });
   add({
     id: 'ecg-004', name: 'Atrial fibrillation', category: 'rhythm',
-    clinical: '74-year-old with palpitations and an irregular pulse. Long-standing hypertension.',
+    clinicals: [
+      "A 70-year-old man with long-standing hypertension, obesity, and obstructive sleep apnea is seen in the pre-op clinic before an elective inguinal hernia repair. He denies chest pain or breathlessness, his blood pressure is 138/86, and a screening tracing is obtained.",
+      "A 34-year-old woman comes to the emergency department with two days of palpitations and fatigue that began during a stretch of long shifts and poor sleep. She has no cardiac history, her blood pressure is 124/78, her temperature is 36.9 C, and she is comfortable at rest.",
+      "A 58-year-old woman who had rheumatic fever as a child reports two months of getting winded carrying groceries up one flight of stairs, worse in the last week. Her blood pressure is 118/72, her oxygen saturation is 96 percent on room air, and a low-pitched diastolic murmur is audible at the apex."
+    ],
     rate: 96, rhythm: 'afib', axis: 'normal', territory: null,
     keyLeads: { II: 'no P waves; irregular RR', V1: 'fibrillatory baseline' },
     teaching: 'Irregularly irregular RR intervals with no discrete P waves and a fibrillatory baseline (best seen in V1 and II). The commonest sustained arrhythmia. Manage rate versus rhythm control and, above all, stroke prevention guided by CHA2DS2-VASc.',
@@ -495,7 +562,11 @@
   });
   add({
     id: 'ecg-005', name: 'Atrial flutter', category: 'rhythm',
-    clinical: '68-year-old with palpitations; ventricular rate almost exactly 75, regular.',
+    clinicals: [
+      "A 71-year-old woman is seen in the pre-op clinic before elective knee replacement. She reports six weeks of intermittent palpitations at rest and getting winded on one flight of stairs; she is alert and comfortable, BP 132/78, lungs clear.",
+      "A 58-year-old man is on telemetry on postoperative day 3 after right upper lobectomy. Overnight he noticed palpitations and became short of breath walking to the bathroom; he is comfortable now, warm and well perfused, BP 124/76, oxygen saturation 95 percent on room air.",
+      "A 34-year-old woman with an atrial septal defect repaired surgically in childhood comes to the emergency department with two days of palpitations and lightheadedness on standing. She is alert and well perfused, BP 118/72, temperature 37.0 C."
+    ],
     rate: 75, rhythm: 'flutter', axis: 'normal', territory: null,
     keyLeads: { II: 'sawtooth flutter waves', III: 'sawtooth flutter waves', aVF: 'sawtooth flutter waves' },
     teaching: 'Regular sawtooth flutter (F) waves at about 300/min, classically negative in II, III and aVF from a counterclockwise right-atrial macro-reentrant circuit. Ventricular rate is a fraction of 300 (2:1 gives 150, 4:1 gives 75). Definitive therapy is cavotricuspid isthmus ablation.',
@@ -503,7 +574,11 @@
   });
   add({
     id: 'ecg-006', name: 'Supraventricular tachycardia (AVNRT)', category: 'rhythm',
-    clinical: '22-year-old with abrupt-onset palpitations, rate 185, narrow and regular.',
+    clinicals: [
+      "A 24-year-old woman comes to the emergency department after the sudden onset of palpitations and mild chest discomfort while she was sitting on the couch watching television. She is alert and anxious but warm and well perfused, with blood pressure 104/68, temperature 37.0 C, respiratory rate 18, and oxygen saturation 99 percent on room air, and she reports three similar spells in the past year.",
+      "A 58-year-old man waiting in preoperative holding for elective cataract surgery reports palpitations that began a few minutes ago while he was reading. He is comfortable and afebrile on maintenance fluids, blood pressure 118/74, respiratory rate 16, lungs clear, and he takes no cardiac medications.",
+      "Paramedics are called to a farmers market for a 33-year-old woman who developed palpitations and lightheadedness while she was standing at a booth. She is alert and speaking in full sentences with warm dry skin, blood pressure 100/64, afebrile, and she has no chest injury, no bleeding and no known heart disease."
+    ],
     rate: 185, rhythm: 'svt', axis: 'normal', territory: null,
     keyLeads: { II: 'narrow regular tachycardia, no visible P' },
     teaching: 'Regular narrow-complex tachycardia around 150-250/min with P waves buried in or just after the QRS. Usually AV-nodal reentry. Try vagal maneuvers, then IV adenosine to transiently block the AV node.',
@@ -511,7 +586,11 @@
   });
   add({
     id: 'ecg-007', name: 'Ventricular tachycardia', category: 'rhythm',
-    clinical: '63-year-old with prior MI, palpitations and lightheadedness. Wide, regular, rate 165.',
+    clinicals: [
+      "A 58-year-old man is on day three of his admission for an anterior myocardial infarction treated with stenting when he abruptly develops palpitations and lightheadedness. He is awake and diaphoretic with cool fingertips, and his blood pressure is 88/54.",
+      "A 24-year-old woman collapses at the end of a club soccer match and is awake but pale and confused when the ambulance crew reaches her. Her brother died suddenly at 19, her blood pressure is 94/60, and her teammates say she has had two prior episodes of palpitations during hard exertion.",
+      "A 66-year-old woman waiting in pre-op holding for a laparoscopic cholecystectomy becomes lightheaded and short of breath while her IV is being placed. She has a cardiomyopathy from the doxorubicin she received for breast cancer eight years ago, and she is now cool and clammy with a blood pressure of 92/58."
+    ],
     rate: 165, rhythm: 'vt', axis: 'normal', territory: null,
     keyLeads: { II: 'wide monomorphic tachycardia', V1: 'wide QRS' },
     teaching: 'Regular wide-complex tachycardia (QRS over 120 ms) at over 100/min. In anyone with structural heart disease assume VT until proven otherwise. Unstable means synchronized cardioversion; a pulseless patient gets defibrillation.',
@@ -519,7 +598,11 @@
   });
   add({
     id: 'ecg-008', name: 'Ventricular fibrillation', category: 'rhythm',
-    clinical: 'Collapsed 60-year-old, no pulse. Monitor shows chaotic activity.',
+    clinicals: [
+      "A 52-year-old woman with hypertension and a 30 pack-year smoking history is found slumped at the kitchen table by her husband, who starts chest compressions immediately. Paramedics arrive six minutes later and find her unresponsive and apneic with no palpable carotid pulse, and this strip is recorded during a pause in compressions.",
+      "A 68-year-old woman is on the step-down unit on hospital day 2 after primary PCI for an anterior myocardial infarction, and she was awake and comfortable at the last nursing check. The telemetry alarm sounds, and the nurse finds her unresponsive with no carotid pulse and an unobtainable blood pressure.",
+      "A 19-year-old collegiate swimmer collapses at practice and arrives with bystander CPR in progress after 10 minutes. He is unresponsive with no palpable femoral pulse and no spontaneous respirations, and his coach reports that an uncle died suddenly at age 30."
+    ],
     rate: 0, rhythm: 'vfib', axis: null, territory: null,
     keyLeads: { II: 'chaotic, no organized QRS' },
     teaching: 'Chaotic, irregular deflections with no identifiable P, QRS or T. It is a non-perfusing rhythm. Immediate defibrillation and high-quality CPR are the only effective treatments.',
@@ -529,7 +612,11 @@
   /* ---- CONDUCTION ---- */
   add({
     id: 'ecg-009', name: 'First-degree AV block', category: 'conduction',
-    clinical: 'Routine ECG, asymptomatic 55-year-old. PR interval measures 260 ms.',
+    clinicals: [
+      "A 74-year-old woman returns to clinic two weeks after her atenolol dose was doubled for uncontrolled hypertension. She reports no dizziness, chest pain, or change in her usual two-mile walks; blood pressure is 134/78 and she is alert and well perfused with warm extremities.",
+      "A 26-year-old landscaper comes to the emergency department with a week of fatigue and an expanding red rash on his thigh that appeared days after he pulled a tick off in June. He denies syncope, lightheadedness, and chest pain; temperature is 37.4 C, blood pressure 122/74, and an ECG is obtained as part of his evaluation.",
+      "A 52-year-old woman is evaluated before elective bariatric surgery. She has obstructive sleep apnea treated with nightly CPAP, takes no cardiac medications, and has no exertional symptoms; blood pressure is 128/76 and the cardiac exam is unremarkable."
+    ],
     rate: 68, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { II: 'PR interval > 200 ms, every P conducts' },
     teaching: 'PR interval fixed and prolonged beyond 200 ms with 1:1 conduction (every P is followed by a QRS). Usually benign and needs no treatment on its own.',
@@ -537,7 +624,11 @@
   });
   add({
     id: 'ecg-010', name: 'Mobitz I (Wenckebach)', category: 'conduction',
-    clinical: 'Inferior-MI patient on telemetry; grouped beating noted.',
+    clinicals: [
+      "A 24-year-old collegiate distance runner is seen in the training room for preseason clearance. She feels well overall but reports two brief episodes of lightheadedness while lying down after long runs; blood pressure is 112/68, she is alert and conversant, and there is no murmur.",
+      "A 58-year-old man is on telemetry on hospital day 2 after emergent stenting of an occluded right coronary artery. He is comfortable with no recurrent chest pain, blood pressure 116/72, lungs clear, and extremities warm and well perfused.",
+      "A 67-year-old woman is evaluated in the pre-op clinic before total knee arthroplasty. Her diltiazem dose was doubled two weeks ago for blood pressure control, and since then she has felt mildly tired on her usual walks; blood pressure today is 124/76 and she is alert and in no distress."
+    ],
     rate: 60, rhythm: 'wenckebach', axis: 'normal', territory: null,
     keyLeads: { II: 'progressive PR lengthening, then a dropped QRS' },
     teaching: 'Progressive PR prolongation until a P wave fails to conduct and a QRS is dropped, producing group beating and a lengthening-then-pause pattern. Block is in the AV node, usually benign; observe or treat the cause.',
@@ -545,7 +636,11 @@
   });
   add({
     id: 'ecg-011', name: 'Mobitz II', category: 'conduction',
-    clinical: 'Syncope in a 70-year-old; constant PR with intermittent dropped beats.',
+    clinicals: [
+      "A 71-year-old woman is brought in after collapsing at a bus stop with no warning, striking her cheek on the curb and coming around within seconds. Her only medication is lisinopril, she is alert and conversant, and her blood pressure is 128/74.",
+      "A 46-year-old woman with biopsy-proven pulmonary sarcoidosis reports three months of fatigue and lightheadedness whenever she climbs the stairs at work. Her lungs are clear, her blood pressure is 118/72 and her oxygen saturation is 98 percent on room air.",
+      "A 66-year-old man is evaluated before elective knee replacement and mentions a month of feeling washed out and short of breath on hills. He takes only atorvastatin, he is afebrile and warm and well perfused, and his blood pressure is 134/80."
+    ],
     rate: 50, rhythm: 'mobitz2', axis: 'normal', territory: null,
     keyLeads: { II: 'constant PR, sudden non-conducted P (dropped QRS)' },
     teaching: 'Fixed PR interval with sudden failure to conduct a P wave and no preceding PR lengthening. Block is infranodal (His-Purkinje), so it is unstable and prone to progress to complete block. It warrants a pacemaker.',
@@ -553,7 +648,11 @@
   });
   add({
     id: 'ecg-012', name: 'Third-degree (complete) AV block', category: 'conduction',
-    clinical: '78-year-old with fatigue and near-syncope; atrial and ventricular rates differ.',
+    clinicals: [
+      "EMS is called for an 81-year-old woman found sitting on her kitchen floor after a witnessed collapse. She is pale and slow to answer with cool hands, blood pressure 84/52, and she reports this is the third time in a month her legs have suddenly given out.",
+      "A 29-year-old landscaper in rural Connecticut comes to clinic with three weeks of fever, aching joints, and an expanding rash on his thigh that appeared after a tick bite. He now feels lightheaded climbing stairs; he is alert and conversant, temperature 37.4 C, blood pressure 104/64.",
+      "A 74-year-old woman is on telemetry on postoperative day two after surgical aortic valve replacement. Overnight she becomes dizzy and diaphoretic when the nurse sits her upright, with blood pressure 88/56 and clear lungs."
+    ],
     rate: 38, rhythm: 'chb', axis: 'normal', territory: null,
     keyLeads: { II: 'AV dissociation: P waves march through independent QRS' },
     teaching: 'Complete AV dissociation: the atria (P waves) and ventricles (escape QRS) beat independently, with the atrial rate faster than the ventricular. PR intervals are random. Treat with a permanent pacemaker.',
@@ -561,7 +660,11 @@
   });
   add({
     id: 'ecg-013', name: 'Right bundle branch block (RBBB)', category: 'conduction',
-    clinical: 'Incidental finding on a pre-operative ECG in a 61-year-old.',
+    clinicals: [
+      "A 58-year-old woman is evaluated in the pre-operative clinic before an elective total knee replacement. She has hypertension controlled on lisinopril, walks two miles most days without chest pain or breathlessness, and her blood pressure is 128/76 when the screening ECG is recorded.",
+      "A 47-year-old man is on the telemetry ward, admitted two days ago for gallstone pancreatitis and now eating without abdominal pain. He is afebrile with a blood pressure of 130/82, and an ECG is recorded before he is moved to an unmonitored bed.",
+      "A 29-year-old woman is brought to the emergency department after a car struck her bicycle at low speed, leaving a bruise across the left chest wall where the handlebars hit. She is fully alert and conversant with a blood pressure of 118/72 and clear lungs, and an ECG is obtained as part of the blunt chest trauma workup."
+    ],
     rate: 72, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { V1: "rSR' (M-shaped) wide QRS", V6: 'wide terminal S wave', I: 'wide terminal S wave' },
     teaching: "QRS over 120 ms with an rSR' (M-shaped) complex in V1-V2 and a wide slurred S wave in I and V6, plus discordant T-wave inversion in the right precordial leads. Late right-ventricular activation. Can be a normal variant.",
@@ -577,7 +680,11 @@
   });
   add({
     id: 'ecg-014', name: 'Left bundle branch block (LBBB)', category: 'conduction',
-    clinical: '69-year-old with heart failure; broad QRS on ECG.',
+    clinicals: [
+      "A 54-year-old woman with a 20-year history of poorly controlled hypertension is admitted to the medical ward overnight for observation after a mechanical fall at home, and a routine tracing is obtained. She reports no chest pain or lightheadedness, she is alert and conversant with warm extremities, blood pressure is 146/90, and the apical impulse is sustained and displaced laterally.",
+      "A 57-year-old man with hypertension and a 30 pack-year smoking history calls EMS for 45 minutes of substernal pressure radiating to the left arm with sweating and nausea. He arrives diaphoretic and anxious, blood pressure is 154/92, oxygen saturation is 96 percent on room air, and the lungs are clear to auscultation.",
+      "A 78-year-old woman is evaluated before elective hip replacement and reports several months of breathlessness and chest tightness when walking uphill. She has a harsh crescendo-decrescendo systolic murmur at the right upper sternal border radiating to both carotids with a soft second heart sound, and blood pressure is 118/76."
+    ],
     rate: 74, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { V1: 'broad negative QS complex', V6: 'broad notched (M-shaped) R wave', I: 'broad monophasic R, no septal q' },
     teaching: 'QRS over 120 ms with a broad, notched, monophasic R in I, aVL, V5-V6 and a deep wide QS in V1-V3, with no septal q waves. Appropriate discordance means the ST-T points opposite the main QRS. New LBBB with ischemic symptoms is an ACS equivalent, and LBBB invalidates ordinary ST-based MI reading (use Sgarbossa).',
@@ -596,7 +703,11 @@
   });
   add({
     id: 'ecg-015', name: 'Wolff-Parkinson-White (WPW)', category: 'conduction',
-    clinical: '19-year-old with intermittent palpitations; short PR and slurred QRS upstroke.',
+    clinicals: [
+      "A 16-year-old girl comes to the office for a preparticipation physical before varsity soccer tryouts. She has no cardiac complaints, takes no medications, and feels well; blood pressure is 112/68 mm Hg, and a screening ECG is obtained per league policy.",
+      "A 23-year-old man is brought to the emergency department after being struck in the chest by a line drive during a recreational softball game. He is alert and comfortable with localized chest wall tenderness, blood pressure 126/74 mm Hg, and oxygen saturation 99% on room air, and an ECG is obtained to screen for blunt cardiac injury.",
+      "A 52-year-old woman is evaluated in the preoperative clinic before elective cholecystectomy for symptomatic gallstones. She walks two miles daily without difficulty, takes only levothyroxine, and is asymptomatic today, with blood pressure 134/80 mm Hg, and a routine preoperative ECG is recorded."
+    ],
     rate: 74, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { II: 'short PR (<120 ms), delta wave', V4: 'delta wave (slurred upstroke)' },
     teaching: 'Short PR under 120 ms, a delta wave (slurred initial QRS upstroke) and a widened QRS from pre-excitation through an accessory pathway that bypasses the AV node. Risk of AV re-entrant tachycardia; in pre-excited AFib, avoid AV-nodal blockers.',
@@ -606,7 +717,11 @@
   /* ---- ISCHEMIA ---- */
   add({
     id: 'ecg-016', name: 'Acute anterior STEMI (LAD)', category: 'ischemia',
-    clinical: '58-year-old man, crushing substernal chest pain for 40 minutes, diaphoretic.',
+    clinicals: [
+      "A 54-year-old woman with type 2 diabetes and a 30 pack-year smoking history arrives by ambulance with 50 minutes of heavy pressure across the front of her chest and worsening breathlessness. She is drenched in sweat and speaking in short sentences; HR 88, BP 152/88, oxygen saturation 91 percent on room air, with crackles at both lung bases.",
+      "A 73-year-old woman admitted to the medical ward for lower leg cellulitis, with longstanding diabetes and chronic kidney disease, calls the nurse because she suddenly cannot catch her breath. She denies any chest pain but is clammy and ashen; HR 88, BP 108/70, and she looks unwell enough that a 12-lead is done at the bedside.",
+      "Paramedics respond to a 46-year-old warehouse worker who developed severe crushing pressure behind his breastbone 25 minutes ago while loading boxes. He smokes a pack a day and his father had bypass surgery at 52; he is grey and sweating, HR 88, BP 124/78, and a 12-lead is obtained in the loading bay."
+    ],
     rate: 88, rhythm: 'sinus', axis: 'normal', territory: 'LAD / anteroseptal',
     keyLeads: { V1: 'ST elevation', V2: 'ST elevation', V3: 'ST elevation', V4: 'ST elevation' },
     teaching: 'Convex ("tombstone") ST elevation across the precordial leads V1-V4 localizes to the LAD and the anteroseptal wall. This is the highest-risk territory. Reciprocal inferior ST depression may appear. Immediate reperfusion: primary PCI, or fibrinolysis if PCI is unavailable.',
@@ -617,7 +732,11 @@
   });
   add({
     id: 'ecg-017', name: 'Acute inferior STEMI (RCA)', category: 'ischemia',
-    clinical: '66-year-old with chest pain, nausea and bradycardia; hypotensive after nitroglycerin.',
+    clinicals: [
+      "A 54-year-old woman comes to the emergency department with 90 minutes of burning epigastric pain, nausea and two episodes of vomiting that she blamed on dinner. She is cool and clammy, heart rate 58, blood pressure 104/62.",
+      "Paramedics respond to a 68-year-old man with a 40 pack-year smoking history who developed crushing substernal chest pressure and heavy sweating while shoveling gravel in his driveway. He is alert but pale with clear lungs, heart rate 58 and blood pressure 108/66.",
+      "A 63-year-old woman with type 2 diabetes is in pre-op holding for an elective hernia repair when she becomes nauseated, diaphoretic and says she feels like she might pass out; she denies any chest pain. Heart rate 57, blood pressure 96/58."
+    ],
     rate: 58, rhythm: 'sinus', axis: 'normal', territory: 'RCA / inferior',
     keyLeads: { II: 'ST elevation', III: 'ST elevation', aVF: 'ST elevation', I: 'reciprocal ST depression', aVL: 'reciprocal ST depression' },
     teaching: 'ST elevation in II, III and aVF with reciprocal ST depression in I and aVL localizes to the inferior wall, usually an RCA occlusion (III elevation greater than II favors RCA). Get right-sided leads: RV involvement makes the patient preload-dependent, so avoid nitrates. Bradycardia and AV block are common.',
@@ -625,7 +744,11 @@
   });
   add({
     id: 'ecg-018', name: 'Acute lateral STEMI (LCx)', category: 'ischemia',
-    clinical: '61-year-old with chest pain radiating to the left arm.',
+    clinicals: [
+      "A 57-year-old woman with type 2 diabetes and hypertension arrives with 40 minutes of heavy pressure under the left breast that spreads into her left shoulder. She is diaphoretic, pulse 84 and regular, blood pressure 138/86.",
+      "One day after hip hemiarthroplasty, a 66-year-old woman on the surgical ward calls the nurse for a band of chest tightness that began at rest and aches into her left armpit. She is alert and warm, pulse 84 and regular, blood pressure 132/74, and the discomfort has not eased over 30 minutes.",
+      "Paramedics are called to a 43-year-old man with familial hypercholesterolemia and a coronary stent placed three years ago, who has had a gripping left-sided chest ache since waking an hour ago. He is pale and clammy, pulse 84 and regular, blood pressure 146/90, and two doses of his home nitroglycerin have not helped."
+    ],
     rate: 84, rhythm: 'sinus', axis: 'normal', territory: 'LCx / lateral',
     keyLeads: { I: 'ST elevation', aVL: 'ST elevation', V5: 'ST elevation', V6: 'ST elevation', III: 'reciprocal ST depression' },
     teaching: 'ST elevation in the lateral leads I, aVL, V5 and V6 points to the left circumflex or a diagonal branch, with reciprocal ST depression inferiorly. High lateral (I, aVL) elevation with inferior reciprocal change is a classic pairing.',
@@ -636,7 +759,11 @@
   });
   add({
     id: 'ecg-019', name: 'Posterior MI', category: 'ischemia',
-    clinical: '60-year-old with chest pain; tall R waves and ST depression in V1-V3.',
+    clinicals: [
+      "A 54-year-old woman with type 2 diabetes and a 30 pack-year smoking history comes to the emergency department with 90 minutes of chest pressure and breathlessness that started while she was sitting at her desk. She is alert with a heart rate of 80, blood pressure 142/88, clear lungs, and a first troponin still pending.",
+      "A 46-year-old man with a father who had bypass surgery at 50 calls 911 from a construction site for 45 minutes of burning discomfort below the breastbone that two rounds of antacids did not relieve. He is diaphoretic but talking in full sentences, pulse 80 and regular, blood pressure 150/92, and medics record a prehospital 12-lead.",
+      "A 71-year-old woman on the orthopedic ward, two days after hemiarthroplasty for a hip fracture, calls the nurse because her chest feels heavy and she is more short of breath than she was at physical therapy that morning. She is afebrile, heart rate 80, blood pressure 118/74, oxygen saturation 96 percent on room air."
+    ],
     rate: 80, rhythm: 'sinus', axis: 'normal', territory: 'RCA/LCx / posterior',
     keyLeads: { V1: 'ST depression + tall R', V2: 'ST depression + tall R', V3: 'ST depression' },
     teaching: 'A posterior infarct is a mirror image in the anterior leads: horizontal ST depression with tall broad R waves and upright T waves in V1-V3 (R/S over 1 in V2). Confirm with posterior leads V7-V9, which show the true ST elevation. Often accompanies an inferior or lateral STEMI.',
@@ -651,7 +778,11 @@
   });
   add({
     id: 'ecg-020', name: 'NSTEMI / ischemia (ST depression, TWI)', category: 'ischemia',
-    clinical: '70-year-old with exertional chest pain at rest; troponin rising, no ST elevation.',
+    clinicals: [
+      "A 68-year-old woman with type 2 diabetes and hypertension comes to the emergency department with two hours of epigastric burning, jaw ache and breathlessness that started while she was sitting at her desk and has not let up. She looks uncomfortable but not distressed; heart rate 92, blood pressure 152/88, lungs clear, no murmur.",
+      "A 58-year-old man with obesity and obstructive sleep apnea is seen in the pre-operative clinic before an elective knee replacement and reports that a heavy ache across his chest woke him at 3 am and lasted about half an hour. He had a second, milder episode with nausea while sitting in the waiting room; heart rate 92, blood pressure 144/86.",
+      "A 49-year-old man who smokes a pack a day walks into an urgent care clinic with 40 minutes of heaviness in his left arm and shoulder, sweating and mild nausea that began while he was watching television. His father died of a heart attack at 52; he is pale and clammy, heart rate 92, blood pressure 138/84."
+    ],
     rate: 92, rhythm: 'sinus', axis: 'normal', territory: 'subendocardial',
     keyLeads: { V4: 'ST depression', V5: 'ST depression + T inversion', V6: 'ST depression + T inversion', I: 'T inversion', aVL: 'T inversion' },
     teaching: 'Horizontal or downsloping ST depression and symmetric T-wave inversion without ST elevation indicate subendocardial ischemia. With a positive troponin this is NSTEMI. Management is antithrombotic therapy and risk-stratified (often early) invasive angiography, not immediate lytics.',
@@ -670,7 +801,11 @@
   /* ---- CHAMBER ENLARGEMENT ---- */
   add({
     id: 'ecg-021', name: 'Left ventricular hypertrophy (LVH)', category: 'chamber',
-    clinical: '64-year-old with long-standing hypertension; loud A2 and an S4.',
+    clinicals: [
+      "A 78-year-old woman is seen in the preoperative clinic before elective hip replacement. She reports that two flights of stairs now leave her breathless and that she nearly fainted while gardening last month; blood pressure is 138/62, pulse 74 and regular, and there is a harsh late-peaking systolic murmur at the right upper sternal border radiating to both carotids with a slow-rising carotid upstroke.",
+      "A 52-year-old man is brought to the emergency department after a nosebleed that would not stop for 40 minutes. He admits he quit refilling his three blood pressure prescriptions about a year ago; blood pressure is 198/116 in both arms, pulse 74, and he is otherwise comfortable and in no distress.",
+      "A 24-year-old woman is referred to the clinic for hypertension first documented at age 14 and never controlled despite three agents. Right arm blood pressure is 172/98 with a regular pulse of 74, and the femoral pulses are weak and noticeably delayed compared with the radial."
+    ],
     rate: 74, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { V1: 'deep S wave', V2: 'deep S wave', V5: 'tall R wave + strain', V6: 'tall R wave + strain' },
     teaching: 'Voltage criteria such as Sokolow-Lyon (S in V1 plus R in V5 or V6 over 35 mm) with a lateral "strain" pattern of downsloping ST depression and asymmetric T inversion in I, aVL, V5-V6. Left axis is common. Causes: hypertension and aortic stenosis.',
@@ -685,7 +820,11 @@
   });
   add({
     id: 'ecg-022', name: 'Right ventricular hypertrophy (RVH)', category: 'chamber',
-    clinical: '52-year-old with COPD and pulmonary hypertension; right axis deviation.',
+    clinicals: [
+      "A 41-year-old woman has had a murmur since childhood that was never investigated, and describes two years of gradually worsening breathlessness climbing the stairs at home. There is a systolic murmur at the left upper sternal border with a loud second heart sound, heart rate 86/min, blood pressure 114/72.",
+      "A 58-year-old woman with a 40 pack-year smoking history and home oxygen presents to the ED with three weeks of worsening breathlessness and a cough productive of clear sputum. She is barrel chested with distant heart sounds, oxygen saturation 87 percent on room air, heart rate 86/min, blood pressure 126/78.",
+      "A 34-year-old woman with limited cutaneous systemic sclerosis is admitted to telemetry for four months of progressive dyspnea and near-syncope on climbing one flight of stairs. Her fingertips ulcerate in cold weather and she has no cough or fever; heart rate 86/min, blood pressure 104/66."
+    ],
     rate: 86, rhythm: 'sinus', axis: 'right', territory: null,
     keyLeads: { V1: 'tall R (R>S) + strain', V6: 'deep S wave', II: 'tall peaked P (P pulmonale)' },
     teaching: 'Right axis deviation with a dominant R wave in V1 (R/S over 1) and deep S waves in V5-V6, often with right-precordial strain (TWI V1-V3) and peaked P pulmonale. Causes: pulmonary hypertension, chronic lung disease, and pulmonic stenosis.',
@@ -701,7 +840,11 @@
   /* ---- METABOLIC ---- */
   add({
     id: 'ecg-023', name: 'Hyperkalemia', category: 'metabolic',
-    clinical: 'Dialysis patient who missed a session; potassium 7.4 mEq/L. Tall peaked T waves.',
+    clinicals: [
+      "A 34-year-old woman with end-stage renal disease on thrice-weekly hemodialysis comes to the emergency department after missing her last two sessions during a move out of state, reporting fatigue and numbness in her fingers. Temperature 37.0 C, heart rate 70/min, blood pressure 158/94 mm Hg, and an ECG is obtained at triage.",
+      "A 41-year-old construction worker is extricated after being pinned beneath collapsed scaffolding for roughly six hours; his thighs are tense and swollen and his first voided urine is dark brown. In the field his pulse is 70/min, blood pressure 118/72 mm Hg, and the medics run a 12-lead before transport.",
+      "A 68-year-old man with heart failure and stage 4 chronic kidney disease, maintained on lisinopril and spironolactone, is seen in preoperative clinic before an elective hernia repair; he just completed a course of trimethoprim-sulfamethoxazole for a urinary infection and notes his legs feel heavy climbing stairs. Heart rate 70/min, blood pressure 132/78 mm Hg, and a baseline ECG is recorded."
+    ],
     rate: 70, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { II: 'tall peaked (tented) T waves', V3: 'peaked T waves', V4: 'peaked T waves' },
     teaching: 'Sequence with rising K+: tall narrow peaked (tented) T waves first, then PR prolongation and P-wave flattening, then QRS widening, and finally a sine-wave pattern preceding arrest. Treat with IV calcium (membrane stabilization), then insulin plus glucose and albuterol to shift K+, then dialysis or other removal.',
@@ -709,7 +852,11 @@
   });
   add({
     id: 'ecg-024', name: 'Hypokalemia', category: 'metabolic',
-    clinical: 'Patient on high-dose loop diuretics with weakness; potassium 2.6 mEq/L.',
+    clinicals: [
+      "A 24-year-old woman at 10 weeks gestation comes to the emergency department after five days of relentless vomiting, unable to keep down food or fluids. She reports heavy, weak legs and cramping in her calves; heart rate is 76/min, blood pressure 104/64.",
+      "A 68-year-old man with chronic heart failure is seen in the pre-op clinic before elective inguinal hernia repair. His loop diuretic was doubled three weeks ago for leg swelling, and he now mentions nocturnal calf cramps and fatigue climbing stairs; heart rate 76/min, blood pressure 132/78.",
+      "A 46-year-old woman is referred to the clinic for hypertension that has not responded to three agents at full dose. She describes intermittent episodes of profound muscle weakness and increased urination over the past year; heart rate is 76/min, blood pressure 168/98."
+    ],
     rate: 76, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { II: 'U waves, flattened T', V3: 'prominent U wave', V4: 'prominent U wave, ST depression' },
     teaching: 'Flattened T waves, ST depression and prominent U waves (a positive deflection after the T), which can fuse into an apparent long QT. Predisposes to torsades. Replace potassium and check magnesium, since hypokalemia is refractory until the magnesium is corrected.',
@@ -719,7 +866,11 @@
   /* ---- OTHER ---- */
   add({
     id: 'ecg-025', name: 'Acute pericarditis', category: 'other',
-    clinical: '32-year-old with sharp pleuritic chest pain, better leaning forward, after a viral illness.',
+    clinicals: [
+      "A 24-year-old man comes to student health with three days of sharp central chest pain, ten days after a flu-like illness with fever and body aches. Temperature 37.9 C, heart rate 96/min, blood pressure 124/76, oxygen saturation 97 percent on room air.",
+      "A 47-year-old woman with systemic lupus erythematosus, off her hydroxychloroquine for two months, comes to the emergency department with two days of chest discomfort, joint pain and a new facial rash. Temperature 38.0 C, heart rate 96/min, blood pressure 130/78.",
+      "A 38-year-old man who finished mantle field radiation for Hodgkin lymphoma seven weeks ago is seen on the oncology day unit with four days of constant central chest ache and malaise. Temperature 37.8 C, heart rate 96/min, blood pressure 114/72."
+    ],
     rate: 96, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { II: 'diffuse concave ST elevation, PR depression', I: 'concave ST elevation', V5: 'concave ST elevation', aVR: 'PR elevation, ST depression' },
     teaching: 'Diffuse, concave-upward ST elevation across multiple territories with PR-segment depression, and reciprocal PR elevation with ST depression in aVR. The widespread distribution (not fitting one artery) and PR changes separate it from STEMI. Spodick sign and later T-wave inversion may follow.',
@@ -730,7 +881,11 @@
   });
   add({
     id: 'ecg-026', name: 'Brugada syndrome (type 1)', category: 'other',
-    clinical: '35-year-old man, family history of sudden death; coved ST elevation in V1-V2.',
+    clinicals: [
+      "A 28-year-old man is brought in after his wife found him gasping and unresponsive in bed at 3 AM; he came around on his own within a minute and is now alert, oriented and complaining only of two days of fever and body aches. He took acetaminophen before arrival, and his temperature is now 37.4 C, heart rate 72/min, blood pressure 118/72, with a normal cardiac and neurologic exam.",
+      "A 52-year-old woman with no cardiac history has a routine ECG before elective laparoscopic cholecystectomy. She is asymptomatic and walks three miles a day, but on review of systems she reports that her father and a paternal uncle each died unexpectedly in their sleep in their mid-forties; heart rate is 72/min, blood pressure 124/76, and the cardiac exam is normal.",
+      "A 47-year-old man comes in for a routine physical and mentions two fainting spells in the past year, both while sitting quietly about an hour after a large dinner. Each time he dropped without warning and felt entirely normal within a minute; he takes no medications, and his heart rate is 72/min with blood pressure 128/78."
+    ],
     rate: 72, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { V1: 'coved ST elevation, T inversion', V2: 'coved ST elevation, T inversion' },
     teaching: 'Type 1 pattern: a coved (downsloping) ST elevation of at least 2 mm descending into an inverted T wave in the right precordial leads V1-V2, from a sodium-channelopathy. Risk of polymorphic VT and sudden cardiac death; an ICD is the only proven protection.',
@@ -744,7 +899,11 @@
   });
   add({
     id: 'ecg-027', name: 'Pulmonary embolism (right heart strain)', category: 'other',
-    clinical: '54-year-old post-op with sudden dyspnea and pleuritic pain; sinus tachycardia.',
+    clinicals: [
+      "A 68-year-old man is seen in primary care three weeks after an ankle fracture was placed in a walking boot, with four days of breathlessness on minimal exertion. Heart rate 112, blood pressure 104/68, respiratory rate 24, oxygen saturation 92 percent on room air.",
+      "A 23-year-old man is seen in cardiology clinic two weeks after a small ventricular septal defect was closed with a device passed through a catheter in his femoral vein. He became winded carrying laundry up one flight of stairs. Heart rate 112, blood pressure 106/68, oxygen saturation 93 percent on room air.",
+      "A 31-year-old woman comes to the emergency department with one day of sharp left-sided chest pain that catches when she breathes in. She started a combined oral contraceptive four months ago. Heart rate 112, blood pressure 110/72, respiratory rate 24, oxygen saturation 93 percent on room air."
+    ],
     rate: 112, rhythm: 'sinus', axis: 'right', territory: null,
     keyLeads: { I: 'S wave (S1)', III: 'Q wave and T inversion (Q3T3)', V1: 'T inversion (RV strain)', V2: 'T inversion' },
     teaching: 'The most common finding is plain sinus tachycardia. The classic (but insensitive) S1Q3T3 is an S wave in I, with a Q wave and inverted T in III, from acute right-heart strain; right precordial T-wave inversion and a new incomplete RBBB may appear. Diagnose with CT angiography, not the ECG.',
@@ -760,7 +919,11 @@
   });
   add({
     id: 'ecg-028', name: 'Long QT syndrome', category: 'other',
-    clinical: '17-year-old with exertional syncope; family history of sudden death. QTc 520 ms.',
+    clinicals: [
+      "A 19-year-old collegiate swimmer is brought to the emergency department after he was pulled from the pool having lost consciousness mid-lap during a timed set. He woke within a minute with no confusion or injury, and now has a heart rate of 68/min, blood pressure 118/72 mm Hg, and a normal cardiac and neurologic exam.",
+      "A 71-year-old man on the medical ward is recovering from aspiration pneumonia after four days of vomiting and diarrhea, during which he continued his usual high-dose loop diuretic and was started on intravenous antibiotics and an antiemetic. He reports one brief episode of feeling faint while sitting up this morning; heart rate is 68/min and blood pressure is 108/64 mm Hg.",
+      "A 15-year-old girl is referred to the cardiology clinic after her 17-year-old brother collapsed and died suddenly during a soccer match last spring. She feels well, has never had chest pain or palpitations, and has a heart rate of 68/min, blood pressure 104/66 mm Hg, and a normal cardiac exam."
+    ],
     rate: 68, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { II: 'prolonged QT interval', V4: 'prolonged QT, broad T' },
     teaching: 'QT prolonged for rate (QTc over 470 ms in men, over 480 ms in women), from congenital channelopathy or acquired causes (drugs, hypokalemia, hypomagnesemia, hypocalcemia). The danger is torsades de pointes. Remove offending drugs, correct electrolytes, and consider beta-blockers or an ICD.',
@@ -768,7 +931,11 @@
   });
   add({
     id: 'ecg-029', name: 'Torsades de pointes', category: 'other',
-    clinical: 'Patient on QT-prolonging drugs with syncope; polymorphic wide-complex tachycardia.',
+    clinicals: [
+      "A 72-year-old man on the telemetry ward, day 4 of treatment for aspiration pneumonia, has been getting intravenous haloperidol for agitation and scheduled antiemetics for persistent nausea. He had two brief spells of lightheadedness overnight, and now he slumps over in bed, unresponsive, with no palpable pulse and a monitored rate of 240 beats per minute.",
+      "A 29-year-old woman with anorexia nervosa and several months of daily laxative use and self-induced vomiting collapses in the emergency department waiting room. On the stretcher she is unresponsive with no palpable pulse and no recordable blood pressure, and the cardiac monitor counts 240 beats per minute.",
+      "Paramedics respond to a 58-year-old woman on long term methadone for back pain who fainted twice at work after starting an oral antifungal for a toenail infection last week. Partway through transport she becomes unresponsive, has no palpable pulse, and the monitor reads 240 beats per minute."
+    ],
     rate: 240, rhythm: 'torsades', axis: null, territory: null,
     keyLeads: { II: 'polymorphic VT twisting around baseline' },
     teaching: 'Polymorphic VT in which the QRS amplitude and axis appear to twist around the baseline, arising from a prolonged QT. Treat with IV magnesium, correct electrolytes, stop the offending drug, and increase the rate (pacing or isoproterenol); defibrillate if unstable.',
@@ -776,7 +943,11 @@
   });
   add({
     id: 'ecg-030', name: 'Digitalis effect', category: 'other',
-    clinical: '72-year-old on digoxin for rate control; scooped ST segments (not toxicity).',
+    clinicals: [
+      "A 71-year-old woman with chronic heart failure is seen for a routine annual visit and reports only some stiffness in her knees. She has taken digoxin at the same dose every morning for six years, her pulse is 66, and her blood pressure is 126/78.",
+      "A 64-year-old man with long-standing heart failure attends cardiology clinic for a routine six-month review and reports no chest pain or breathlessness. His regimen includes a cardiac medication that inhibits the myocardial sodium-potassium ATPase pump, his pulse is 66, and his blood pressure is 132/80.",
+      "A 52-year-old woman with chronic heart failure comes to the emergency department after twisting her ankle stepping off a curb and asks only for something for the pain. She takes a medication that treats heart failure and abnormal heart rhythms but does not remember its name; heart rate 66, blood pressure 122/74."
+    ],
     rate: 66, rhythm: 'sinus', axis: 'normal', territory: null,
     keyLeads: { V5: 'scooped ("Salvador Dali") ST depression', V6: 'scooped ST depression', II: 'sagging ST, short QT' },
     teaching: 'Therapeutic digitalis produces a sagging, scooped ST depression (the "Salvador Dali mustache"), a short QT and flattened or inverted T waves, most visible in leads with tall R waves. This is a drug effect, not toxicity; toxicity instead causes arrhythmias such as atrial tachycardia with block or bidirectional VT.',
@@ -789,6 +960,23 @@
 
   // Resolve each DX into a full engine spec (merge overrides onto base)
   DX.forEach(function (d) { d.engineSpec = mergeSpec(d.spec || {}); });
+
+  /* Each diagnosis carries several interchangeable vignettes. A student who meets
+     the same diagnosis twice should not recognise it by its story, so the case is
+     presented with a different presentation each time. `clinical` stays as the
+     first one for anything that expects a single string. */
+  DX.forEach(function (d) {
+    if (!d.clinicals || !d.clinicals.length) d.clinicals = [d.clinical];
+    d.clinical = d.clinicals[0];
+  });
+
+  /* Deterministic pick, so re-rendering the same case does not swap the story
+     out from under the reader mid-question. */
+  function vignetteFor(dx, seed) {
+    var list = (dx && dx.clinicals && dx.clinicals.length) ? dx.clinicals : [dx.clinical];
+    if (list.length === 1) return list[0];
+    return list[Math.floor(mulberry32((seed >>> 0) + 104729)() * list.length)] || list[0];
+  }
 
   /* ------------------------------------------------------- axis helper */
   // Determine axis category from net QRS in I and aVF (and II for LAD threshold).
@@ -891,6 +1079,7 @@
     gauss: gauss, project: project, mulberry32: mulberry32,
     baseSpec: baseSpec, mergeSpec: mergeSpec, buildRhythm: buildRhythm,
     computeLead: computeLead, sampleLead: sampleLead, leadPath: leadPath,
+    qrsEndMs: qrsEndMs, QRS_CAL: QRS_CAL, vignetteFor: vignetteFor,
     TERRITORY: TERRITORY, leadTerritory: leadTerritory, reciprocalLeads: reciprocalLeads,
     axisFromLeads: axisFromLeads,
     DX: DX,

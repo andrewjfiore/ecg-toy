@@ -1,0 +1,84 @@
+name: Deploy ECG Trainer to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # The published artifacts are generated, not committed by hand. Rebuilding
+      # here means a stale checked-in index.html can never ship.
+      - name: Build self-contained trainer
+        run: node build.js
+
+      - name: Verify medical assertions
+        run: node ecg-tests.js
+
+      # A lead marked normal where the engine renders a global abnormality would
+      # fail a student for reading the trace correctly. Never ship that.
+      - name: Validate per-lead answer key against the engine
+        run: node validate-truth.js
+
+      - name: Check every rendered trace
+        run: node render-check.js
+
+      # A vignette that states the finding lets a student answer without the ECG.
+      - name: Validate clinical vignettes
+        run: node validate-vignettes.js
+
+      # the leak checker is only useful if it still separates real leaks from
+      # legitimate clinical detail (respiratory rate, ages, mm Hg, comorbidities)
+      - name: Test the vignette validator itself
+        run: node validate-vignettes.test.js
+
+      - name: Smoke test the built file
+        run: node ecg-file-check.js
+
+      - name: Stage site
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp ecg-qa.html _site/ 2>/dev/null || true
+          cp ecg_cases.json _site/ 2>/dev/null || true
+          cp CREDITS.md _site/ 2>/dev/null || true
+          cp -r ecg-library _site/
+          touch _site/.nojekyll
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
