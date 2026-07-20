@@ -293,8 +293,20 @@
     var p = {
       p: 0, q: 0, r: 0, s: 0, t: 0, u: spec.uAmp || 0, st: 0,
       qrsScale: ws, tSig: spec.tSig, tOffset: spec.tOffset, stSig: spec.stSig,
-      prDep: 0, delta: 0, deltaA: 0, qrsComps: null, biphasicP: false
+      prDep: 0, delta: 0, deltaA: 0, qrsComps: null, biphasicP: false,
+      qtScale: 1
     };
+
+    /* QT tracks heart rate. Without this the engine drew a fixed ~390 ms QT at
+       every rate, so the same repolarization read as an abnormally SHORT QT at
+       46/min (QTc 344) and as frank LONG QT at 122/min (QTc 585) - the sinus
+       tachycardia case measured out in the long-QT range. Scaling the ST-T
+       interval by the square root of RR is Bazett rearranged, which is the
+       correction a reader applies at the bedside, so what is drawn now matches
+       the measurement a student is being taught to take. Clamped so the very fast
+       rhythms do not collapse the T into the following QRS. */
+    var rrMs = 60000 / (spec.rate && spec.rate > 20 ? spec.rate : 72);
+    p.qtScale = Math.min(1.45, Math.max(0.55, Math.sqrt(rrMs / 833)));
 
     if (LIMB.indexOf(lead) >= 0) {
       var ang = LIMB_ANGLE[lead];
@@ -411,9 +423,9 @@
        the ST segment keeps its length as the QRS widens. This is also the correct
        physiology: QT contains the QRS, so a 150 ms LBBB complex lengthens QT
        rather than eating into the ST segment. */
-    var tCenter = q0 + qrsEnd + (p.tOffset - 62.5);
-    v += gauss(t, p.t * amp * pol, tCenter, p.tSig);
-    if (p.u) v += gauss(t, p.u, tCenter + 135, 44);
+    var tCenter = q0 + qrsEnd + (p.tOffset - 62.5) * p.qtScale;
+    v += gauss(t, p.t * amp * pol, tCenter, p.tSig * p.qtScale);
+    if (p.u) v += gauss(t, p.u, tCenter + 135 * p.qtScale, 44 * p.qtScale);
     return v;
   }
 
@@ -911,7 +923,12 @@
       rate: 112, axis: 100,
       leadOverride: {
         I: { addS: -0.35 },
-        III: { addQ: -0.22, tInv: true },
+        /* T3 needs an explicit amplitude. The T axis of 40 degrees is nearly
+           perpendicular to lead III, so the projected T is only 0.061 mV, and
+           tInv merely flipped that to -0.061 mV: a 0.6 mm deflection, invisible
+           at 10 mm/mV. keyLeads advertises "Q wave and T inversion (Q3T3)" here,
+           so the T inversion has to actually be on the tracing. */
+        III: { addQ: -0.22, t: -0.20 },
         aVF: { tInv: true }
       },
       precordial: { V1: { t: -0.22 }, V2: { t: -0.25 }, V3: { t: -0.15 } }

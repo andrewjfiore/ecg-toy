@@ -140,6 +140,58 @@ ok(ECG.computeLead(wpw.engineSpec, 'V4').delta === 1, 'WPW: delta wave flagged')
 // 18. Count coverage
 ok(ECG.DX.length >= 20, 'diagnosis coverage >= 20 (' + ECG.DX.length + ')');
 
+// 19. QT tracks heart rate.
+// The engine used to draw a fixed ~390 ms QT regardless of rate, so the same
+// repolarization measured as an abnormally short QT at 46/min (QTc 344) and as
+// frank long QT at 122/min (QTc 585). A student measuring the sinus tachycardia
+// tracing correctly landed in the long-QT range, which is the engine teaching a
+// wrong number. Absolute QT is asserted against rate-appropriate norms rather
+// than QTc, because Bazett over-corrects at tachycardia: a genuinely normal QT of
+// ~330 ms at 122/min still yields a QTc near 470 on a real ECG.
+function measureQT(dxId, lead) {
+  var d = ECG.byId(dxId), sp = d.engineSpec;
+  var v = ECG.sampleLead(sp, lead, 0, 6000, 1), rh = ECG.buildRhythm(sp, 6000);
+  if (rh.vEvents.length < 3) return null;
+  var q0 = Math.round(rh.vEvents[1].t), j = ECG.qrsEndMs(sp, lead), base = v[q0 - 70] || 0;
+  var lo = Math.round(q0 + j), hi = Math.round(Math.min(rh.vEvents[2].t - 40, q0 + 900));
+  var pk = 0, ti = lo, i;
+  for (i = lo; i < hi; i++) if (Math.abs(v[i] - base) > Math.abs(pk)) { pk = v[i] - base; ti = i; }
+  var e = ti; while (e < hi && Math.abs(v[e] - base) > Math.abs(pk) * 0.1) e++;
+  return e - q0;
+}
+// [id, label, plausible absolute QT window at that case's rate]
+[['ecg-002', 'sinus bradycardia (46/min)', 410, 520],
+ ['ecg-001', 'normal sinus (72/min)', 350, 440],
+ ['ecg-003', 'sinus tachycardia (122/min)', 280, 360],
+ ['ecg-017', 'inferior STEMI (58/min)', 370, 470]].forEach(function (c) {
+  var qt = measureQT(c[0], 'II');
+  ok(qt >= c[2] && qt <= c[3], 'QT scales with rate: ' + c[1] + ' QT ' + qt + ' ms in [' + c[2] + ',' + c[3] + ']');
+});
+var qtLong = measureQT('ecg-028', 'II'), qtNorm = measureQT('ecg-001', 'II'), qtDig = measureQT('ecg-030', 'II');
+ok(qtLong > qtNorm * 1.4, 'long QT is clearly longer than normal (' + qtLong + ' vs ' + qtNorm + ' ms)');
+ok(qtDig < qtNorm, 'digitalis shortens QT (' + qtDig + ' vs ' + qtNorm + ' ms)');
+
+// 20. Findings named in keyLeads must actually be visible on the tracing.
+// PE advertises "Q wave and T inversion (Q3T3)" in III, but the T axis is nearly
+// perpendicular to that lead, so the projected T was 0.061 mV and tInv merely
+// flipped it: a 0.6 mm deflection, invisible at 10 mm/mV.
+// 1 mm is the conventional threshold for calling a T inversion or a Q wave on
+// standard paper, so that is the bar. NSTEMI's aVL sits just above it at 1.2 mm,
+// which is marginal rather than absent; the answer key already leaves that lead
+// ungraded, so a reader who misses it is not penalised.
+var VISIBLE_MV = 0.10;
+ECG.DX.forEach(function (d) {
+  Object.keys(d.keyLeads || {}).forEach(function (L) {
+    var note = d.keyLeads[L], p = ECG.computeLead(d.engineSpec, L);
+    if (/T\s*inver|inverted T|T3/i.test(note)) {
+      ok(p.t <= -VISIBLE_MV, d.id + ' ' + L + ': advertised T inversion is visible (' + (p.t * 10).toFixed(1) + ' mm)');
+    }
+    if (/Q wave|Q3/i.test(note)) {
+      ok(p.q <= -VISIBLE_MV, d.id + ' ' + L + ': advertised Q wave is visible (' + (p.q * 10).toFixed(1) + ' mm)');
+    }
+  });
+});
+
 console.log('\nECG engine tests: ' + pass + ' passed, ' + fail + ' failed, ' + ECG.DX.length + ' diagnoses.');
 if (notes.length) { console.log(notes.join('\n')); process.exit(1); }
 else console.log('ALL PASS');
