@@ -1,0 +1,16 @@
+{
+  "name": "ecg-toy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-contained offline 12-lead ECG trainer with synthetic waveforms",
+  "license": "MIT",
+  "scripts": {
+    "build": "node build.js",
+    "test": "node ecg-tests.js && node validate-truth.js && node render-check.js && node validate-vignettes.js && node validate-vignettes.test.js && node ecg-file-check.js",
+    "credits": "node gen-credits.js",
+    "timing": "node measure-timing.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1"
+  }
+}

@@ -26,6 +26,13 @@ jobs:
         with:
           node-version: "20"
 
+      # ecg-file-check.js drives a real browser to assert the scoring contract,
+      # so Chromium has to be present before the smoke test runs.
+      - name: Install dependencies
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+
       # The published artifacts are generated, not committed by hand. Rebuilding
       # here means a stale checked-in index.html can never ship.
       - name: Build self-contained trainer
